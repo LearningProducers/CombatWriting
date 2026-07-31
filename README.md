@@ -10,7 +10,7 @@ Combat Writing is a single HTML file that battle-tests your communications.
 Combat Writing creates the conditions for your draft to improve itself through self-organization. The app is the environment that lets real feedback loops form. The AI crew of your choice attacks the draft from multiple angles, the weak parts get exposed, the strong parts survive, and the work naturally reorganizes itself.
 
 The app walks you through four clear stages:  
-- **Strategy**: Source Material with Context  
+- **Strategy**: Source Material with context  
 - **Sparring**: dialogue on your pieces from the crew  
 - **Battle**: go back and forth until final draft survives  
 - **Champion**: publish and record what worked
