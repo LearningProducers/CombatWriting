@@ -10,10 +10,10 @@ Combat Writing is a single HTML file that battle-tests your communications.
 Combat Writing creates the conditions for your draft to improve itself through self-organization. The app is the environment that lets real feedback loops form. The AI crew of your choice attacks the draft from multiple angles, the weak parts get exposed, the strong parts survive, and the work naturally reorganizes itself.
 
 The app walks you through four clear stages:  
-- **Strategy** — Source Material with Context  
-- **Sparring** — dialogue on your pieces from the crew  
-- **Battle** — go back and forth until final draft survives  
-- **Champion** — publish and record what worked
+- **Strategy**: Source Material with Context  
+- **Sparring**: dialogue on your pieces from the crew  
+- **Battle**: go back and forth until final draft survives  
+- **Champion**: publish and record what worked
 
 **2. Groq Cloud Crew**  
 Connect one API key and you have a live team of GPT-OSS 120B and Qwen 3.6 27B models, two genuinely different model families. They read your draft, rate it honestly, argue with each other, and challenge you to make it better. No corporate guardrails, just direct feedback.
