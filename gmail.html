@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Open Gmail Draft</title>
+<!--
+  LPI field-relay launcher (ROUNDTABLE STEP 4.5, 2026-08-05). Owned by the
+  secretary arc: lpi-ops INFRABOT_QA_RUNBOOK.md STEP 4.5 entry and
+  tools/secretary/SECRETARY.md. Not part of the Combat Writing app; hosted
+  here because this repo is LPI's existing static hosting. No Combat
+  Writing ship touches this file.
+
+  What it does: reads to / subject / body from the URL HASH FRAGMENT
+  (never the query string: a fragment never leaves the phone, never
+  reaches server logs, and survives host redirects intact), then offers
+  one real anchor whose href is the Gmail iOS app's URL scheme
+  (googlegmail://co) and a mailto fallback. NO auto-redirect on load:
+  WebKit blocks gestureless custom-scheme navigation; a real anchor tap
+  is a user gesture and always fires, including from Telegram's in-app
+  browser. This page holds no data of its own; the draft rides only in
+  the link that opens it.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex;
+    align-items: center; justify-content: center;
+    font-family: -apple-system, system-ui, sans-serif;
+    background: #f5f5f4; color: #1c1917;
+  }
+  main { width: 100%; max-width: 26rem; padding: 1.5rem; box-sizing: border-box; }
+  h1 { font-size: 1rem; font-weight: 600; letter-spacing: 0.04em;
+       text-transform: uppercase; opacity: 0.6; margin: 0 0 0.75rem; }
+  #preview { font-size: 0.95rem; line-height: 1.4; margin: 0 0 1.25rem;
+             overflow-wrap: anywhere; }
+  a.big {
+    display: block; width: 100%; box-sizing: border-box; text-align: center;
+    padding: 1.1rem 1rem; border-radius: 0.75rem; text-decoration: none;
+    font-size: 1.15rem; font-weight: 700;
+    background: #c2410c; color: #ffffff;
+  }
+  a.small {
+    display: block; text-align: center; margin-top: 1.25rem;
+    font-size: 0.9rem; color: inherit; opacity: 0.7;
+  }
+  #empty { font-size: 0.95rem; }
+  [hidden] { display: none; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1917; color: #f5f5f4; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>LPI relay</h1>
+  <p id="preview">Reading the draft from the link...</p>
+  <a id="gmail" class="big" hidden>OPEN GMAIL DRAFT</a>
+  <a id="mailto" class="small" hidden>Default mail fallback</a>
+  <p id="empty" hidden>No draft rides this link. It carries data only when
+  opened from a field-relay payload.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  /* Hash only, never query: the draft never touches a server. The hash
+     was single-encoded at the Air (the SINGLE-ENCODE GUARD's territory);
+     URLSearchParams decodes it exactly once here. The Air never emits a
+     raw '+', so the parser's plus-as-space rule has nothing to bite. */
+  var params = new URLSearchParams(location.hash.slice(1));
+  var to = params.get("to");
+  var subject = params.get("subject") || "";
+  var body = params.get("body") || "";
+  var preview = document.getElementById("preview");
+  if (!to) {
+    preview.hidden = true;
+    document.getElementById("empty").hidden = false;
+    return;
+  }
+  var enc = encodeURIComponent;
+  /* Gmail iOS app URL scheme: opens the app compose prefilled. No web
+     session, no cookies, no OAuth anywhere in the chain. */
+  var gmail = "googlegmail://co?to=" + enc(to) +
+              "&subject=" + enc(subject) + "&body=" + enc(body);
+  /* Fallback: the phone's default mail app. Address rides raw (mailto
+     path part, addr-spec); newlines ride CRLF per RFC 6068. */
+  var mailto = "mailto:" + to + "?subject=" + enc(subject) +
+               "&body=" + enc(body.replace(/\n/g, "\r\n"));
+  var g = document.getElementById("gmail");
+  var m = document.getElementById("mailto");
+  /* Data reaches the DOM via textContent and href only, never markup. */
+  g.setAttribute("href", gmail);
+  m.setAttribute("href", mailto);
+  g.hidden = false;
+  m.hidden = false;
+  preview.textContent = "To: " + to + (subject ? " / " + subject : "");
+}());
+</script>
+</body>
+</html>
