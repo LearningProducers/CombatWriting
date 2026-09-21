@@ -16,7 +16,7 @@ The app walks you through four clear stages:
 - **Champion**: publish and record what worked
 
 **2. Groq Cloud Crew**  
-Connect one API key and you have a live team of GPT-OSS 120B and Qwen 3.6 27B models, two genuinely different model families. They read your draft, rate it honestly, argue with each other, and challenge you to make it better. No corporate guardrails, just direct feedback.
+Connect one API key and you have a live team of two open-source models from two genuinely different model families, picked from Groq's live catalog so the roster never goes stale. They read your draft, rate it honestly, argue with each other, and challenge you to make it better. No corporate guardrails, just direct feedback.
 
 **3. Offline AI (Dolphin3 via Ollama)**  
 Run completely local with Ollama. Your work never leaves your machine. No API costs, no data leaving your computer.
