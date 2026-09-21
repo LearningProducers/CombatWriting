@@ -7,7 +7,7 @@
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  COMBAT WRITING — FILE MAP                                                   ║
-║  v41.7 · Untrack + pointers: internal docs off the public repo (2026-07-30)  ║
+║  v41.8 · Council slots resolve from Groq's live model catalog (2026-09-21)   ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
 ║  ORIGIN (ruled 2026-07-16; reworded at v41.6 for public presentation, same   ║
@@ -80,11 +80,11 @@
 ║  L 4298–  4318  downloadApp (9-site version sync gate)                       ║
 ║  L 4319–  4951  *** Print Path Provenance (v36.0): printSummary ***          ║
 ║  L 4952–  5063  Plain-text summary export                                    ║
-║  L 5064–  5221  *** v41.2 MODEL_CONFIG registry + getSlot* resolvers ***     ║
-║  L 5222–  5448  getMaxTokens (dynamic, ALL slots), buildGroqMessages, memory ║
-║  L 5449–  5685  Groq core: slot maps, key/slot mgmt, syncGroqLabels, armGroq ║
-║  L 5686–  6000  Groq fire chain: fireGroq, fireGroqCustom, fireGroqBattle    ║
-║  L 6001–  6092  initGroq (v41.2 roster migration, armed state, slot toggles) ║
+║  L 5064–  5422  *** v41.8 registry from Groq's catalog + slot resolution *** ║
+║  L 5423–  5658  getMaxTokens (dynamic, ALL slots), buildGroqMessages, memory ║
+║  L 5659–  5878  Groq core: slot families, key/slot mgmt, syncGroqLabels, arm ║
+║  L 5879–  6206  Groq fire chain: fireGroq, fireGroqCustom, fireGroqBattle    ║
+║  L 6207–  6288  initGroq (v41.8 catalog first, armed state, slot toggles)    ║
 ║                                                                              ║
 ║  ── DOCTRINE LOCK ───────────────────────────────────────────────────────    ║
 ║  · Always run pre-deploy parser check (new Function(scriptBody)) before push ║
@@ -1760,11 +1760,11 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
     <div class="groq-key-status" id="groq-key-status"></div>
     <div class="groq-slots-label">ACTIVE SLOTS</div>
     <div class="groq-slot-row">
-      <div class="groq-slot-info"><strong>SLOT A</strong> &nbsp;·&nbsp; <span class="slot-model">GPT-OSS 120B · OpenAI (Workhorse)</span></div>
+      <div class="groq-slot-info"><strong>SLOT A</strong> &nbsp;·&nbsp; <span class="slot-model" id="groq-drawer-model-a">SAVE A GROQ KEY TO LOAD MODELS</span></div>
       <label class="groq-toggle"><input type="checkbox" id="groq-toggle-a" checked onchange="saveGroqSlotEnabled('a',this.checked)"><span class="groq-toggle-track"></span></label>
     </div>
     <div class="groq-slot-row">
-      <div class="groq-slot-info"><strong>SLOT B</strong> &nbsp;·&nbsp; <span class="slot-model">Qwen 3.6 27B · Alibaba (Different family)</span></div>
+      <div class="groq-slot-info"><strong>SLOT B</strong> &nbsp;·&nbsp; <span class="slot-model" id="groq-drawer-model-b">SAVE A GROQ KEY TO LOAD MODELS</span></div>
       <label class="groq-toggle"><input type="checkbox" id="groq-toggle-b" onchange="saveGroqSlotEnabled('b',this.checked)"><span class="groq-toggle-track"></span></label>
     </div>
 
@@ -1773,14 +1773,14 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
       <div class="groq-slot-info"><strong>SESSION MEMORY</strong> &nbsp;·&nbsp; <span class="slot-model">Remember last 4 exchanges per slot · clears on session clear</span></div>
       <label class="groq-toggle"><input type="checkbox" id="groq-memory-toggle" checked onchange="saveGroqMemoryToggle(this.checked)"><span class="groq-toggle-track"></span></label>
     </div>
-    <div class="groq-mem-note"><strong>Per-slot memory.</strong> Slot A and Slot B keep separate threads. Sparring and Battle share memory within the same slot letter. Preserved on export/import.<ul style="margin:6px 0 0 0;padding-left:18px;"><li><strong>Slot A (GPT-OSS 120B):</strong> the workhorse. Fire it first on anything substantial.</li><li><strong>Slot B (Qwen 3.6 27B):</strong> a different model family: a genuinely second perspective, not a smaller copy of Slot A. Fire after A, or alone on short docs.</li><li><strong>Different ceilings.</strong> Slot A runs 8K tokens per minute; Slot B runs 6K. Long Final Drafts get trimmed harder on B, and a draft that 413s on B may clear on A. You get a banner when trimming happens.</li><li><strong><code style="background:#1a1a1a;padding:1px 4px;border-radius:2px;color:#e06060;">413</code>:</strong> per-request cap OR TPM rolling window hit. Trim FD/SM/C if it's a size cap; wait 60s if it's the window. Error body tells you which.</li></ul></div>
+    <div class="groq-mem-note"><strong>Per-slot memory.</strong> Slot A and Slot B keep separate threads. Sparring and Battle share memory within the same slot letter. Preserved on export/import.<ul style="margin:6px 0 0 0;padding-left:18px;"><li><strong>Slot A:</strong> the workhorse family (OpenAI's open-weight line). Fire it first on anything substantial.</li><li><strong>Slot B:</strong> a different model family (Alibaba's Qwen line, whichever is newest on Groq): a genuinely second perspective, not a smaller copy of Slot A. Fire after A, or alone on short docs.</li><li><strong>The roster is read live.</strong> Both slots pick their model from Groq's own catalog when you save a key and again whenever a model disappears, and the slot label always names what is running. If no second family is left, Slot B says NO SECOND VOICE instead of copying Slot A.</li><li><strong><code style="background:#1a1a1a;padding:1px 4px;border-radius:2px;color:#e06060;">413</code>:</strong> per-request cap OR TPM rolling window hit. Trim FD/SM/C if it's a size cap; wait 60s if it's the window. Error body tells you which.</li></ul></div>
 
     <div class="groq-drawer-footer">Free tier — no credit card required &nbsp;·&nbsp; <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
   </div>
 </div>
 
 <div id="header">
-  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.7</button></div>
+  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.8</button></div>
   <div id="stage-nav">
     <button class="nav-pill" data-stage="STRATEGY" onclick="showStageTab('STRATEGY')">STRATEGY</button>
     <button class="nav-pill" data-stage="SPARRING"  onclick="showStageTab('SPARRING')">SPARRING</button>
@@ -1789,7 +1789,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
   </div>
   <div id="title-download-row">
     <input type="text" id="project-title-input" placeholder="PROJECT TITLE" oninput="onFC()">
-    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.7</button>
+    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.8</button>
   </div>
   <div class="save-area">
     <span class="save-group"><div class="save-dot" id="save-dot"></div><span class="save-lbl" id="save-lbl">READY</span></span>
@@ -1865,9 +1865,9 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
             <span>+ ADDITIONAL CREW SLOTS</span>
           </div>
           <div class="extra-crew-body" id="extra-crew-body">
-            <div class="crew-row" id="groq-slot-row-a"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x1" placeholder="AI 4" value="Gemini" oninput="onFC()"><select class="groq-model-label" id="groq-model-a" onchange="saveGroqSlotModel('a',this.value)"><option value="openai/gpt-oss-120b">GPT-OSS 120B</option><option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option></select><span class="mem-badge mem-on" id="mem-badge-a" title="Crew memory: this many of the last 4 exchanges are being remembered by Slot A. Clears when you clear the session or delete this slot.">MEM 0/4</span></div><div class="crew-row-top"><textarea id="r-x1" rows="3" placeholder="Response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x1')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x1','label-x1',this)">📋</button><button class="btn-icon" onclick="tts('r-x1',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x1', getGroqLabel('a'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-a" onclick="fireGroq('a')" title="Fire Groq-A">▶ A</button><button class="groq-abort-inline" id="groq-abort-a" onclick="abortGroq('a')" title="Cancel">■</button></div></div>
-            <div class="crew-row groq-slot-disabled" id="groq-slot-row-b"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x2" placeholder="AI 5" value="ChatGPT" oninput="onFC()"><select class="groq-model-label" id="groq-model-b" onchange="saveGroqSlotModel('b',this.value)"><option value="openai/gpt-oss-120b">GPT-OSS 120B</option><option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option></select><span class="mem-badge mem-on" id="mem-badge-b" title="Crew memory: this many of the last 4 exchanges are being remembered by Slot B. Clears when you clear the session or delete this slot.">MEM 0/4</span></div><div class="crew-row-top"><textarea id="r-x2" rows="3" placeholder="Response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x2')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x2','label-x2',this)">📋</button><button class="btn-icon" onclick="tts('r-x2',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x2', getGroqLabel('b'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-b" onclick="fireGroq('b')" title="Fire Groq-B">▶ B</button><button class="groq-abort-inline" id="groq-abort-b" onclick="abortGroq('b')" title="Cancel">■</button></div></div>
-            <div class="crew-row groq-slot-disabled" id="groq-slot-row-c" style="margin-bottom:4px"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x3" placeholder="AI 6" value="Dolphin3" oninput="onFC()"><select class="groq-model-label" id="groq-model-c" onchange="saveGroqSlotModel('c',this.value)"><option value="openai/gpt-oss-120b">GPT-OSS 120B</option><option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option></select></div><div class="crew-row-top"><textarea id="r-x3" rows="3" placeholder="Offline AI response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x3')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x3','label-x3',this)">📋</button><button class="btn-icon" onclick="tts('r-x3',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x3', getGroqLabel('c'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-c" onclick="fireGroq('c')" title="Fire Groq-C">▶ C</button><button class="groq-abort-inline" id="groq-abort-c" onclick="abortGroq('c')" title="Cancel">■</button></div></div>
+            <div class="crew-row" id="groq-slot-row-a"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x1" placeholder="AI 4" value="Gemini" oninput="onFC()"><select class="groq-model-label" id="groq-model-a" onchange="saveGroqSlotModel('a',this.value)"></select><span class="mem-badge mem-on" id="mem-badge-a" title="Crew memory: this many of the last 4 exchanges are being remembered by Slot A. Clears when you clear the session or delete this slot.">MEM 0/4</span></div><div class="crew-row-top"><textarea id="r-x1" rows="3" placeholder="Response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x1')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x1','label-x1',this)">📋</button><button class="btn-icon" onclick="tts('r-x1',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x1', getGroqLabel('a'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-a" onclick="fireGroq('a')" title="Fire Groq-A">▶ A</button><button class="groq-abort-inline" id="groq-abort-a" onclick="abortGroq('a')" title="Cancel">■</button></div></div>
+            <div class="crew-row groq-slot-disabled" id="groq-slot-row-b"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x2" placeholder="AI 5" value="ChatGPT" oninput="onFC()"><select class="groq-model-label" id="groq-model-b" onchange="saveGroqSlotModel('b',this.value)"></select><span class="mem-badge mem-on" id="mem-badge-b" title="Crew memory: this many of the last 4 exchanges are being remembered by Slot B. Clears when you clear the session or delete this slot.">MEM 0/4</span></div><div class="crew-row-top"><textarea id="r-x2" rows="3" placeholder="Response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x2')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x2','label-x2',this)">📋</button><button class="btn-icon" onclick="tts('r-x2',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x2', getGroqLabel('b'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-b" onclick="fireGroq('b')" title="Fire Groq-B">▶ B</button><button class="groq-abort-inline" id="groq-abort-b" onclick="abortGroq('b')" title="Cancel">■</button></div></div>
+            <div class="crew-row groq-slot-disabled" id="groq-slot-row-c" style="margin-bottom:4px"><div class="crew-tag" style="padding-top:0"><input class="crew-label-input" id="label-x3" placeholder="AI 6" value="Dolphin3" oninput="onFC()"><select class="groq-model-label" id="groq-model-c" onchange="saveGroqSlotModel('c',this.value)"></select></div><div class="crew-row-top"><textarea id="r-x3" rows="3" placeholder="Offline AI response..." oninput="onFC()"></textarea><button class="btn-icon clr" onclick="clearField('r-x3')" title="Clear">✕</button><button class="btn-icon" onclick="cpfCrewX('r-x3','label-x3',this)">📋</button><button class="btn-icon" onclick="tts('r-x3',this)">🔊</button><button class="btn-icon" onclick="openFieldOverlay('r-x3', getGroqLabel('c'))" title="Expand">⛶</button><button class="groq-fire-inline" id="groq-fire-c" onclick="fireGroq('c')" title="Fire Groq-C">▶ C</button><button class="groq-abort-inline" id="groq-abort-c" onclick="abortGroq('c')" title="Cancel">■</button></div></div>
           </div>
         </div>
 
@@ -2011,7 +2011,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
           </div>
           <div class="battle-slot-wrap" style="margin-bottom:5px;">
             <div class="battle-slot-header">
-              <select class="battle-slot-model" id="groq-battle-model-a" onchange="saveGroqSlotModel('a',this.value)"><option value="openai/gpt-oss-120b">GPT-OSS 120B</option><option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option></select>
+              <select class="battle-slot-model" id="groq-battle-model-a" onchange="saveGroqSlotModel('a',this.value)"></select>
               <span class="mem-badge mem-on" id="mem-badge-battle-a" title="Slot A memory: this many of the last 4 exchanges are stored. May be evicted at fire time if token budget is exceeded — model will disclose this in its response if so.">MEM 0/4</span>
             </div>
             <textarea id="battle-groq-x1" rows="5" placeholder="Slot A response..." oninput="onFC()" style="width:100%;background:#130508;border:1px solid #cc005722;border-radius:3px;color:#f4a27a;font-family:var(--font);font-size:11px;padding:8px 10px;resize:vertical;outline:none;line-height:1.65;box-sizing:border-box;"></textarea>
@@ -2024,7 +2024,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
           </div>
           <div class="battle-slot-wrap" style="margin-bottom:5px;">
             <div class="battle-slot-header">
-              <select class="battle-slot-model" id="groq-battle-model-b" onchange="saveGroqSlotModel('b',this.value)"><option value="openai/gpt-oss-120b">GPT-OSS 120B</option><option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option></select>
+              <select class="battle-slot-model" id="groq-battle-model-b" onchange="saveGroqSlotModel('b',this.value)"></select>
               <span class="mem-badge mem-on" id="mem-badge-battle-b" title="Slot B memory: this many of the last 4 exchanges are stored. May be evicted at fire time if token budget is exceeded — model will disclose this in its response if so.">MEM 0/4</span>
             </div>
             <textarea id="battle-groq-x2" rows="5" placeholder="Slot B response..." oninput="onFC()" style="width:100%;background:#130508;border:1px solid #cc005722;border-radius:3px;color:#f4a27a;font-family:var(--font);font-size:11px;padding:8px 10px;resize:vertical;outline:none;line-height:1.65;box-sizing:border-box;"></textarea>
@@ -2404,7 +2404,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
      their own filesystem; not the app's place to instruct). -->
 <div id="offline-version-banner" style="display:none;">
   <div class="ovb-inner">
-    <span class="ovb-label">Combat Writing v41.7</span>
+    <span class="ovb-label">Combat Writing v41.8</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
     <span class="ovb-msg">Always use the latest downloaded version</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
@@ -2436,7 +2436,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 // ─────────────────────────────────────────────
 //  FIELDS & CONSTANTS
 // ─────────────────────────────────────────────
-const APP_VERSION='v41.7';
+const APP_VERSION='v41.8';
 const FIELDS=[
   'project-title-input','sm','context',
   'label-x1','label-x2','label-x3',
@@ -4308,12 +4308,12 @@ async function downloadApp(){
     const blobUrl=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=blobUrl;
-    a.download='CombatWriting_v41.7.html';
+    a.download='CombatWriting_v41.8.html';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(blobUrl);document.body.removeChild(a);},2000);
   }catch(e){
-    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.7.html to your device.');
+    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.8.html to your device.');
   }
 }
 
@@ -4620,7 +4620,7 @@ function renderProvenance(st,sparringContributors,battleContributors){
   const rows=[
     ['Operator project',pEsc(title)],
     ['Date',pEsc(prnTs())],
-    ['App','Combat Writing v41.7']
+    ['App','Combat Writing v41.8']
   ];
   if(championLine){
     rows.push(['Status',pEsc(st.status)]);
@@ -4935,7 +4935,7 @@ function buildPlainTextSummary(st,sparringContributors,battleContributors){
   out+=`§ 10 — PROVENANCE\n\n`;
   out+=`Operator project:  ${title}\n`;
   out+=`Date:              ${prnTs()}\n`;
-  out+=`App:               Combat Writing v41.7\n`;
+  out+=`App:               Combat Writing v41.8\n`;
   // v36.1 — Status + Publication gated on CHAMPION
   if(championLine){
     out+=`Status:            ${st.status}\n`;
@@ -5067,6 +5067,23 @@ var GROQ_MEM_MAX_TURNS = 4;              // hard cap per slot
 // value in the app. Nothing in the Groq path branches on a model-name
 // substring. If behavior differs by model, it differs by a field in here.
 //
+// v41.8: THE REGISTRY IS BUILT FROM GROQ'S LIVE CATALOG. No model id is
+// pinned in code any more. When a key is stored, initGroq (and any fire
+// that meets a 404) reads GET /openai/v1/models with the key, keeps the
+// chat-capable records (groqEligible), persists that set under
+// GROQ_CATALOG_KEY so offline and fresh loads keep working, and builds
+// one MODEL_CONFIG row per live id: the VENDOR_BUDGET row for the text
+// before the slash, plus labels DERIVED from the id itself. A slot is a
+// FAMILY (GROQ_SLOT_MAP.family), never an id, and resolves at load and
+// at every catalog read (resolveAllSlots): the family's preferred id if
+// live, else the newest live id the family pattern matches, else the
+// newest live id from a vendor no other slot is on, else NULL. Two slots
+// never resolve to the same id. A NULL slot reads NO SECOND VOICE on
+// every surface, its toggle is forced off, and its fires refuse in one
+// sentence. The heal is visible by construction: the label always names
+// what is actually running, which is what the rule against hidden safety
+// nets protects. The roster history below is kept as history.
+//
 // Roster change (2026-07-16): Groq deprecated qwen/qwen3-32b on 2026-07-17
 // and retires llama-3.3-70b-versatile on 2026-08-16. Slot A and Slot B move
 // to the gpt-oss pair. Slot C stays benched and hidden exactly as v32.3 left
@@ -5096,8 +5113,14 @@ var GROQ_MEM_MAX_TURNS = 4;              // hard cap per slot
 // via the registry-membership gating in initGroq.
 // The v41.2 symmetry NOTE above is history: the slots are asymmetric again
 // (A: 8K TPM / 12,000-char FD; B: 6K TPM / 8,000-char FD).
+// v41.8: the v41.5 asymmetry line above is history in turn. The qwen row's
+// ceiling is measured at 8,000 from Groq's rate-limit header, so both vendor
+// rows carry the same wall again (VENDOR_BUDGET below), and the slot ids are
+// no longer defaults at all: they resolve from the catalog.
 //
-// Qwen row budget math. The wall is 6K TPM, conservative founder-ruled numbers
+// Qwen row budget math (v41.5, superseded at v41.8 by the measured 8K wall in
+// VENDOR_BUDGET; kept as the record of the conservative shape). The wall is
+// 6K TPM, conservative founder-ruled numbers
 // shipped by infrabot v0.4.3 (the account console is login-gated and the docs
 // table is a banned source): tpmCeiling 5700 (300 under the wall for estimator
 // drift), hardCap 6000. floor/ceiling/reqCeiling/fdCharBudget/memTokenBudget
@@ -5111,61 +5134,237 @@ var GROQ_MEM_MAX_TURNS = 4;              // hard cap per slot
 // 'hidden': Groq's default for this model is 'raw', which puts <think> tags
 // INTO message.content; 'hidden' is the mechanism that keeps the v41.2
 // strip-regex deletion safe. Verified against Groq live docs 2026-07-23.
-var MODEL_CONFIG = {
-  'openai/gpt-oss-120b': {
-    id:              'openai/gpt-oss-120b',
-    label:           'GPT-OSS 120B',
-    labelUpper:      'GPT-OSS 120B',
-    slotBlurb:       'GPT-OSS 120B · OpenAI (Workhorse)',
-    tpmCeiling:      7700,
-    hardCap:         8000,
-    floor:           1200,
-    ceiling:         2800,
-    reqCeiling:      5000,
-    fdCharBudget:    12000,
-    memTokenBudget:  1500,
-    reasoningEffort: 'low',
-    reasoningFormat: 'hidden'
-  },
-  'qwen/qwen3.6-27b': {
-    id:              'qwen/qwen3.6-27b',
-    label:           'Qwen 3.6 27B',
-    labelUpper:      'QWEN 3.6 27B',
-    slotBlurb:       'Qwen 3.6 27B · Alibaba (Different family)',
-    tpmCeiling:      5700,
-    hardCap:         6000,
-    floor:           1200,
-    ceiling:         2800,
-    reqCeiling:      4500,
-    fdCharBudget:    8000,
-    memTokenBudget:  1500,
-    reasoningEffort: 'none',
-    reasoningFormat: 'hidden'
-  }
+// v41.8: the effort and format knobs now ride the qwen VENDOR row for every
+// Qwen id the catalog lists; 'none' and 'hidden' are accepted values on the
+// current Qwen line.
+var VENDOR_BUDGET = {
+  openai: { tpmCeiling:7700, hardCap:8000, floor:1200, ceiling:2800, reqCeiling:5000,
+            fdCharBudget:12000, memTokenBudget:1500, reasoningEffort:'low', reasoningFormat:'hidden' },
+  // qwen: the 8,000 TPM ceiling is measured from Groq's rate-limit header on
+  // this family and supersedes the conservative 6K wall of the v41.5 row.
+  // 'none' is the instruct mode (no reasoning tokens on the budget); 'hidden'
+  // keeps the reasoning channel out of message.content.
+  qwen:   { tpmCeiling:7700, hardCap:8000, floor:1200, ceiling:2800, reqCeiling:5000,
+            fdCharBudget:12000, memTokenBudget:1500, reasoningEffort:'none', reasoningFormat:'hidden' },
+  // Any vendor without a measured row: the conservative 6K shape, and no
+  // reasoning knob is sent (groqRequestBody omits a null field).
+  _other: { tpmCeiling:5700, hardCap:6000, floor:1200, ceiling:2800, reqCeiling:4500,
+            fdCharBudget:8000, memTokenBudget:1500, reasoningEffort:null, reasoningFormat:'hidden' }
 };
+var GROQ_CATALOG_URL = 'https://api.groq.com/openai/v1/models';
+var GROQ_CATALOG_KEY = 'cw_groq_catalog';
+var GROQ_CATALOG_EXCLUDE = /whisper|orpheus|tts|guard|compound|safeguard|embed/i;
+var GROQ_CATALOG_MIN_CONTEXT = 32768;
+var GROQ_CATALOG_MIN_OUTPUT = 4096;
+var GROQ_NO_VOICE = 'NO SECOND VOICE';
+var GROQ_NO_CATALOG = 'SAVE A GROQ KEY TO LOAD MODELS';
+var groqCatalog = [];           // the eligible set, newest first
+var groqCatalogNoticeText = ''; // the last resolution change, shown in the drawer
+var MODEL_CONFIG = {};          // built by buildModelRegistry from groqCatalog
 
-// Slot A's default. Also the fallback for any unknown/stale model ID.
-var MODEL_DEFAULT_ID = 'openai/gpt-oss-120b';
-
-// Resolve a model ID to its config. Unknown IDs (a stale localStorage value
-// from a pre-v41.2 install, a hand-edited key) fall back to the default rather
-// than returning undefined and crashing a fire mid-flight.
-function getModelConfig(model){
-  return (model && MODEL_CONFIG[model]) || MODEL_CONFIG[MODEL_DEFAULT_ID];
+function groqVendorOf(id){
+  var s=String(id||''); var i=s.indexOf('/');
+  return i>0 ? s.slice(0,i) : '';
 }
 
-// v41.2: single resolver for "what model is this slot on". Replaces the
-// localStorage -> cfg.defaultModel -> '' chain that was copy-pasted into every
-// budget helper and every fire function. Validates against MODEL_CONFIG, so a
-// slot holding a retired ID resolves to a live model instead of a 404 from Groq.
+// Labels derive from the id: vendor prefix off, upper-cased, the trailing
+// size token split out (qwen/qwen3.8-27b reads QWEN3.8 27B).
+function groqDerivedLabel(id){
+  var tail=String(id||'').replace(/^[^\/]*\//,'');
+  var m=tail.match(/^(.*)-(\d+b)$/i);
+  var base=m?m[1]:tail, size=m?m[2].toUpperCase():'';
+  return base.toUpperCase()+(size?' '+size:'');
+}
+
+// ELIGIBLE: an active chat model with a working context and output window.
+// Speech, guard, compound and embedding ids are not voices.
+function groqEligible(rec){
+  if(!rec||!rec.id||rec.active===false) return false;
+  if(GROQ_CATALOG_EXCLUDE.test(rec.id)) return false;
+  if((rec.context_window||0) < GROQ_CATALOG_MIN_CONTEXT) return false;
+  if((rec.max_completion_tokens||0) < GROQ_CATALOG_MIN_OUTPUT) return false;
+  return true;
+}
+
+// Catalog records to the eligible set, newest first (ties by id).
+function groqCatalogFromRecords(records){
+  var out=[];
+  (Array.isArray(records)?records:[]).forEach(function(r){
+    if(!groqEligible(r)) return;
+    out.push({ id:String(r.id), vendor:groqVendorOf(r.id), owned_by:String(r.owned_by||''),
+               created:Number(r.created)||0, context_window:Number(r.context_window)||0,
+               max_completion_tokens:Number(r.max_completion_tokens)||0, active:true });
+  });
+  out.sort(function(a,b){ return (b.created-a.created) || (a.id<b.id?-1:(a.id>b.id?1:0)); });
+  return out;
+}
+
+function makeModelConfig(id, ownedBy){
+  var budget=VENDOR_BUDGET[groqVendorOf(id)]||VENDOR_BUDGET._other;
+  var label=groqDerivedLabel(id);
+  var cfg={ id:id, label:label, labelUpper:label, slotBlurb:label+(ownedBy?' · '+ownedBy:'') };
+  Object.keys(budget).forEach(function(k){ cfg[k]=budget[k]; });
+  return cfg;
+}
+
+function buildModelRegistry(){
+  MODEL_CONFIG={};
+  groqCatalog.forEach(function(rec){ MODEL_CONFIG[rec.id]=makeModelConfig(rec.id, rec.owned_by); });
+}
+
+// The persisted eligible set, so a load with no network still has a registry.
+function loadGroqCatalog(){
+  var stored=[];
+  try { stored=JSON.parse(localStorage.getItem(GROQ_CATALOG_KEY)||'[]'); } catch(_){ stored=[]; }
+  groqCatalog=groqCatalogFromRecords(stored);
+  buildModelRegistry();
+}
+
+// Resolve a model ID to its config. An id the registry does not hold (the
+// catalog not yet read, a hand-edited key) gets its vendor's budget row and
+// a derived label, never undefined; an empty id is the NULL slot.
+function getModelConfig(model){
+  if(!model){
+    var none=makeModelConfig('', '');
+    none.label=GROQ_NO_VOICE; none.labelUpper=GROQ_NO_VOICE; none.slotBlurb=GROQ_NO_VOICE;
+    return none;
+  }
+  return MODEL_CONFIG[model] || makeModelConfig(model, '');
+}
+
+function readStoredSlotModel(slot){
+  var cfg=GROQ_SLOT_MAP[slot];
+  var stored='';
+  try { stored=(cfg && localStorage.getItem(cfg.modelKey)) || ''; } catch(_){}
+  return stored;
+}
+
+// v41.2: single resolver for "what model is this slot on". v41.8: the stored
+// id is valid only while the registry holds it; anything else is the NULL
+// slot ('') until resolveAllSlots runs on the next catalog read.
 function getSlotModel(slot){
-  var cfg = GROQ_SLOT_MAP[slot];
-  var stored = '';
-  try { stored = (cfg && localStorage.getItem(cfg.modelKey)) || ''; } catch(_){}
+  var stored=readStoredSlotModel(slot);
   if(stored && MODEL_CONFIG[stored]) return stored;
-  var dflt = cfg && cfg.defaultModel;
-  if(dflt && MODEL_CONFIG[dflt]) return dflt;
-  return MODEL_DEFAULT_ID;
+  return '';
+}
+
+// v41.8: THE RESOLUTION, in slot order, each slot excluding every id an
+// earlier slot took. -> {slot: id or ''}. Persists what it decided, forces a
+// NULL slot's toggle off, and touches nothing while no catalog has been read.
+function resolveAllSlots(){
+  var taken={}, out={a:'',b:'',c:''};
+  if(!groqCatalog.length) return out;
+  ['a','b','c'].forEach(function(slot){
+    var cfg=GROQ_SLOT_MAP[slot], fam=cfg.family, id='';
+    var live=function(x){ return !!(x && MODEL_CONFIG[x] && !taken[x]); };
+    var stored=readStoredSlotModel(slot);
+    if(live(stored)) id=stored;
+    else if(live(fam.preferred)) id=fam.preferred;
+    if(!id){
+      for(var i=0;i<groqCatalog.length;i++){
+        var rec=groqCatalog[i];
+        if(live(rec.id) && fam.match.test(rec.id)){ id=rec.id; break; }
+      }
+    }
+    if(!id){
+      var avoid={};
+      Object.keys(taken).forEach(function(t){ avoid[groqVendorOf(t)]=1; });
+      if(slot==='a') avoid[GROQ_SLOT_MAP.b.family.vendor]=1;
+      for(var j=0;j<groqCatalog.length;j++){
+        var alt=groqCatalog[j];
+        if(live(alt.id) && !avoid[alt.vendor]){ id=alt.id; break; }
+      }
+    }
+    try {
+      if(id) localStorage.setItem(cfg.modelKey,id); else localStorage.removeItem(cfg.modelKey);
+      if(!id) localStorage.setItem(cfg.enabledKey,'0');
+    } catch(_){}
+    if(id) taken[id]=1;
+    out[slot]=id;
+  });
+  return out;
+}
+
+// The chat-completion payload from one registry row. A null reasoning field
+// is omitted, never sent as null.
+function groqRequestBody(model, mc, messages, maxTokens, temperature){
+  var body={model:model, messages:messages, max_tokens:maxTokens, temperature:temperature};
+  if(mc.reasoningEffort) body.reasoning_effort=mc.reasoningEffort;
+  if(mc.reasoningFormat) body.reasoning_format=mc.reasoningFormat;
+  return JSON.stringify(body);
+}
+
+// v41.8: THE CATALOG READ. -> true when Groq answered and the registry, the
+// slots, the dropdowns and the labels were rebuilt from it. The raw body
+// never reaches a surface; a failure keeps the persisted set.
+async function readGroqCatalog(key){
+  try {
+    var resp=await fetch(GROQ_CATALOG_URL,{headers:{'Authorization':'Bearer '+key}});
+    if(resp.status!==200) return false;
+    var data=await resp.json();
+    var recs=groqCatalogFromRecords(data&&data.data);
+    if(!recs.length) return false;
+    groqCatalog=recs;
+    try { localStorage.setItem(GROQ_CATALOG_KEY, JSON.stringify(recs)); } catch(_){}
+    applyGroqCatalog();
+    return true;
+  } catch(e){ return false; }
+}
+
+// After a read: rebuild, re-resolve, re-render, and name every slot that moved.
+function applyGroqCatalog(){
+  buildModelRegistry();
+  var before={};
+  ['a','b','c'].forEach(function(s){ before[s]=readStoredSlotModel(s); });
+  var after=resolveAllSlots();
+  var moves=[];
+  ['a','b','c'].forEach(function(s){
+    if(before[s]!==after[s]) moves.push('Slot '+s.toUpperCase()+': '+(before[s]?groqDerivedLabel(before[s]):'(unset)')+' to '+(after[s]?groqDerivedLabel(after[s]):GROQ_NO_VOICE));
+  });
+  groqCatalogNoticeText=moves.length?('Catalog read ✓ '+moves.join(' · ')):'';
+  populateGroqDropdowns();
+  ['a','b','c'].forEach(function(s){ updateGroqSlotUI(s); });
+  syncGroqLabels();
+  var status=g('groq-key-status');
+  if(status && groqCatalogNoticeText){ status.textContent=groqCatalogNoticeText; status.className='groq-key-status ok'; }
+}
+
+// Every model dropdown (Sparring a/b/c, Battle a/b) and the drawer's slot
+// lines render from the eligible set; nothing is hand-written.
+function populateGroqDropdowns(){
+  ['a','b','c'].forEach(function(slot){
+    var cfg=GROQ_SLOT_MAP[slot], current=getSlotModel(slot);
+    [g(cfg.dropdownId), g('groq-battle-model-'+slot)].forEach(function(sel){
+      if(!sel) return;
+      while(sel.firstChild) sel.removeChild(sel.firstChild);
+      var add=function(value,text){ var o=document.createElement('option'); o.value=value; o.textContent=text; sel.appendChild(o); return o; };
+      if(!groqCatalog.length){ add('',GROQ_NO_CATALOG).disabled=true; sel.value=''; return; }
+      if(!current) add('',GROQ_NO_VOICE);
+      groqCatalog.forEach(function(rec){ add(rec.id, groqDerivedLabel(rec.id)); });
+      sel.value=current;
+    });
+    var info=g('groq-drawer-model-'+slot);
+    if(info) info.textContent=groqCatalog.length?getModelConfig(current).slotBlurb:GROQ_NO_CATALOG;
+  });
+}
+
+// v41.8: a 404 on a fire means the id left Groq's catalog. Re-read, let the
+// slots re-resolve, and hand back the slot's new id ('' when none).
+async function healGroqSlot(slot, key, deadModel){
+  var ok=await readGroqCatalog(key);
+  if(!ok) return '';
+  var now=getSlotModel(slot);
+  return now===deadModel ? '' : now;
+}
+
+function groqDeadSlotMessage(slot, mc, healed){
+  var s='Slot '+slot.toUpperCase();
+  if(healed) return s+' moved: '+mc.labelUpper+' left Groq\'s catalog; now firing '+groqDerivedLabel(healed)+'.';
+  return s+': '+mc.labelUpper+' left Groq\'s catalog and no second voice remains outside the other slot\'s family. Open the Groq drawer to pick a model.';
+}
+
+function groqNoVoiceMessage(slot){
+  return 'Slot '+slot.toUpperCase()+' has no model: Groq\'s catalog offers no second voice outside the other slot\'s family. Open the Groq drawer to pick one.';
 }
 
 // Config for whatever model this slot currently holds.
@@ -5205,6 +5404,8 @@ function getMemTokenBudget(slot){
 // v41.5: the "same 8K" clause above is history. Slot B's default (Qwen 3.6
 // 27B) is back on a 6K wall. Mechanically nothing changes here: every slot
 // stays dynamic and every number still comes from the registry row.
+// v41.8: and that is history in turn: the qwen vendor row carries the measured
+// 8K wall, and a slot has no default id, it resolves from the catalog.
 //
 // TWO-CONSTRAINT BUDGET (ported from infrabot v0.2.8, which credits this app
 // as its origin but had the second constraint we did not):
@@ -5342,6 +5543,8 @@ function buildGroqMessages(slot, systemPrompt, userMsg){
   // Both models are 8K TPM now, so 9,000 is not reachable by either.
   // v41.5: the "both 8K" clause above is history. Slot B's default (Qwen 3.6
   // 27B) carries reqCeiling 4,500 in its registry row for its 6K wall.
+  // v41.8: history in turn: the qwen vendor row carries reqCeiling 5,000 on
+  // the measured 8K wall, and no slot has a default id any more.
   var mc = getSlotConfig(slot);
   var REQ_CEILING = mc.reqCeiling;
   // v34.3 — Per-slot memory budget, derived from the slot's model.
@@ -5454,26 +5657,33 @@ function saveGroqMemoryToggle(enabled){
   updateMemoryBadges();
 }
 
+// v41.8: slot FAMILIES. A slot names a family, never an id. preferred is a
+// wish, not a pin: it holds only while the catalog lists it; match picks the
+// family's newest live id when it does not. B and C share the second family
+// so C (benched, v32.3) can never sit on an unregistered id.
+var GROQ_FAMILY_A = { vendor:'openai', preferred:'openai/gpt-oss-120b', match:/^openai\/gpt-oss-\d+b$/ };
+var GROQ_FAMILY_B = { vendor:'qwen', preferred:'', match:/^qwen\// };
+
 var GROQ_SLOT_MAP = {
   a: { outputField:'r-x1', labelField:'label-x1', dropdownId:'groq-model-a', rowId:'groq-slot-row-a',
-       defaultModel:'openai/gpt-oss-120b', defaultLabel:'Groq-A',
+       family:GROQ_FAMILY_A, defaultLabel:'Groq-A',
        enabledKey:'cw_groq_slot_a_enabled', modelKey:'cw_groq_slot_a_model' },
   b: { outputField:'r-x2', labelField:'label-x2', dropdownId:'groq-model-b', rowId:'groq-slot-row-b',
-       defaultModel:'qwen/qwen3.6-27b', defaultLabel:'Groq-B',
+       family:GROQ_FAMILY_B, defaultLabel:'Groq-B',
        enabledKey:'cw_groq_slot_b_enabled', modelKey:'cw_groq_slot_b_model' },
   c: { outputField:'r-x3', labelField:'label-x3', dropdownId:'groq-model-c', rowId:'groq-slot-row-c',
-       defaultModel:'qwen/qwen3.6-27b', defaultLabel:'Groq-C',
+       family:GROQ_FAMILY_B, defaultLabel:'Groq-C',
        enabledKey:'cw_groq_slot_c_enabled', modelKey:'cw_groq_slot_c_model' }
 };
 
 // Battle stage uses dedicated response fields — Sparring slots stay clean
 var GROQ_BATTLE_SLOT_MAP = {
   a: { outputField:'battle-groq-x1', enabledKey:'cw_groq_slot_a_enabled', modelKey:'cw_groq_slot_a_model',
-       defaultModel:'openai/gpt-oss-120b', defaultLabel:'GPT-OSS 120B' },
+       family:GROQ_FAMILY_A },
   b: { outputField:'battle-groq-x2', enabledKey:'cw_groq_slot_b_enabled', modelKey:'cw_groq_slot_b_model',
-       defaultModel:'qwen/qwen3.6-27b', defaultLabel:'Qwen 3.6 27B' },
+       family:GROQ_FAMILY_B },
   c: { outputField:'battle-groq-x3', enabledKey:'cw_groq_slot_c_enabled', modelKey:'cw_groq_slot_c_model',
-       defaultModel:'qwen/qwen3.6-27b', defaultLabel:'Qwen 3.6 27B' }
+       family:GROQ_FAMILY_B }
 };
 
 function toggleGroqDrawer(){
@@ -5488,19 +5698,8 @@ function toggleGroqDrawer(){
     });
     var key=localStorage.getItem('cw_groq_key')||'';
     var status=g('groq-key-status');
-    if(status){ status.textContent=key?'Key saved \u2713 \u2014 enter a new key to update':''; status.className=key?'groq-key-status ok':'groq-key-status'; }
+    if(status){ status.textContent=groqCatalogNoticeText||(key?'Key saved \u2713 \u2014 enter a new key to update':''); status.className=key?'groq-key-status ok':'groq-key-status'; }
   }
-}
-
-async function validateGroqKey(key){
-  try{
-    var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:MODEL_DEFAULT_ID,messages:[{role:'user',content:"Say 'Groq connected'."}],max_tokens:10})
-    });
-    return resp.status===200;
-  }catch(e){return false;}
 }
 
 async function saveGroqKey(){
@@ -5509,11 +5708,13 @@ async function saveGroqKey(){
   if(!key){if(status){status.textContent='Enter a key first';status.className='groq-key-status err';}return;}
   if(btn){btn.disabled=true;btn.textContent='VALIDATING...';}
   if(status){status.textContent='Connecting to Groq...';status.className='groq-key-status';}
-  var valid=await validateGroqKey(key);
+  // v41.8: the key is validated by reading the catalog with it, which also
+  // rebuilds the registry and the slots; no completion is spent on a ping.
+  var valid=await readGroqCatalog(key);
   if(btn){btn.disabled=false;btn.textContent='SAVE KEY';}
   if(valid){
     localStorage.setItem('cw_groq_key',key);
-    if(status){status.textContent='Key validated \u2713';status.className='groq-key-status ok';}
+    if(status){status.textContent='Key validated \u2713 \u00b7 catalog read'+(groqCatalogNoticeText?' \u00b7 '+groqCatalogNoticeText:'');status.className='groq-key-status ok';}
     if(input)input.value='';
     updateGroqBtn();
     setTimeout(function(){toggleGroqDrawer();},1500);
@@ -5624,18 +5825,10 @@ function armGroq(){
   // Auto-expand extra crew section
   var body=g('extra-crew-body'), toggle=document.querySelector('.crew-extra-toggle');
   if(body&&!body.classList.contains('open')){body.classList.add('open');if(toggle)toggle.classList.add('open');}
-  // Set label defaults and sync dropdowns
-  ['a','b','c'].forEach(function(slot){
-    var cfg=GROQ_SLOT_MAP[slot];
-    var sel=g(cfg.dropdownId);
-    // Restore saved model to dropdown
-    var savedModel=localStorage.getItem(cfg.modelKey)||cfg.defaultModel;
-    if(sel) sel.value=savedModel;
-    // v41.0 — Also restore saved model to the Battle dropdown for the same slot
-    var battleSel=g('groq-battle-model-'+slot);
-    if(battleSel) battleSel.value=savedModel;
-    updateGroqSlotUI(slot);
-  });
+  // v41.8: every dropdown renders from the catalog with the resolved id
+  // selected (Sparring and Battle alike), so the two surfaces cannot disagree.
+  populateGroqDropdowns();
+  ['a','b','c'].forEach(function(slot){ updateGroqSlotUI(slot); });
   // v34.2 — sync label inputs to model names via single source of truth
   syncGroqLabels();
   // HP label stays as-is — Prompt Groq Crew button handles that flow
@@ -5685,7 +5878,7 @@ function abortGroq(slot){
   var ab=g('groq-abort-'+slot); if(ab)ab.style.display='none';
 }
 
-async function fireGroq(slot){
+async function fireGroq(slot,notice){
   var key=localStorage.getItem('cw_groq_key');
   if(!key)return;
   var cfg=GROQ_SLOT_MAP[slot];
@@ -5695,6 +5888,7 @@ async function fireGroq(slot){
   var sm=g('sm').value.trim();
   var ctx=g('context').value.trim();
   var outEl=g(cfg.outputField);
+  if(!model){if(outEl)outEl.value=groqNoVoiceMessage(slot);return;}
   if(!sm&&!ctx){if(outEl)outEl.value='Add Source Material and Context Brief before running Groq';return;}
   // v34.4 — Pre-trim SM + Context to per-model char budget before prompt build.
   var trunc=truncateSparringContext(slot, sm, ctx);
@@ -5727,15 +5921,18 @@ async function fireGroq(slot){
     var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:model,messages:buildGroqMessages(slot,systemPrompt,prompt),max_tokens:getMaxTokens(slot,systemPrompt,prompt),temperature:0.3,reasoning_effort:mc.reasoningEffort,reasoning_format:mc.reasoningFormat}),
+      body:groqRequestBody(model,mc,buildGroqMessages(slot,systemPrompt,prompt),getMaxTokens(slot,systemPrompt,prompt),0.3),
       signal:groqAbortControllers[slot].signal
     });
     var data=await resp.json();
     if(fireBtn){fireBtn.disabled=false;fireBtn.textContent='\u25b6 '+slot.toUpperCase();}
     if(abortBtn)abortBtn.style.display='none';
+    // v41.8: a 404 means the id left the catalog. Re-read, re-resolve, say so
+    // in the field, and fire once more on the slot's new id if there is one.
+    if(resp.status===404&&!notice){var healed=await healGroqSlot(slot,key,model);var moved=groqDeadSlotMessage(slot,mc,healed);if(outEl)outEl.value=moved;if(healed)return fireGroq(slot,moved);return;}
     if(resp.status===401){if(outEl)outEl.value='Invalid API key \u2014 check your Groq console';return;}
     if(resp.status===429){if(outEl)outEl.value='Groq rate limit reached \u2014 wait a moment and retry';return;}
-    if(resp.status!==200){var errMsg=data&&data.error&&data.error.message?data.error.message:JSON.stringify(data||{});var diag=resp.status===413?'\n\n\u26a0 413 = payload too large for this model OR TPM rolling window full. Try: trim FD/SM/C, wait 60s for the window to clear, or fire the GPT-OSS 120B slot: its 8K ceiling clears drafts that the Qwen 3.6 27B 6K ceiling rejects.':'';if(outEl)outEl.value='Groq Error '+resp.status+':\n'+errMsg+diag;return;}
+    if(resp.status!==200){var errMsg=data&&data.error&&data.error.message?data.error.message:JSON.stringify(data||{});var diag=resp.status===413?'\n\n\u26a0 413 = payload too large for this model OR TPM rolling window full. Try: trim FD/SM/C, wait 60s for the window to clear, or fire the other slot: each model budgets against its own registry row, and the slot label names what runs.':'';if(outEl)outEl.value='Groq Error '+resp.status+':\n'+errMsg+diag;return;}
     var result=data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:'No response received.';
     // v41.2: reasoning_format 'hidden' (per-model, from the registry) keeps the
     // reasoning channel out of message.content. There is no chain to strip.
@@ -5745,6 +5942,7 @@ async function fireGroq(slot){
     if(wasTruncated){
       result='\u26a0 Source Material + Context Brief truncated to fit Slot '+slot.toUpperCase()+' ('+selfName+') token limit. Partial context analyzed.\n\n'+result;
     }
+    if(notice) result=notice+'\n\n'+result;
     if(outEl){outEl.value=result;onFC();}
     // v37.2 — Strip SM/CTX from stored memory turn. Memory keeps dialogue
     // only; SM/CTX get pulled fresh from live textareas on every fire. Mirrors
@@ -5798,7 +5996,7 @@ function fireGroqAll(){
   });
 }
 
-async function fireGroqCustom(slot,customPrompt,sm,ctx,impressionsOnly){
+async function fireGroqCustom(slot,customPrompt,sm,ctx,impressionsOnly,notice){
   var key=localStorage.getItem('cw_groq_key');
   if(!key)return;
   var cfg=GROQ_SLOT_MAP[slot];
@@ -5806,6 +6004,7 @@ async function fireGroqCustom(slot,customPrompt,sm,ctx,impressionsOnly){
   var mc=getModelConfig(model);
   var selfName=mc.label;
   var outEl=g(cfg.outputField);
+  if(!model){if(outEl)outEl.value=groqNoVoiceMessage(slot);return;}
   var fireBtn=g('groq-fire-'+slot), abortBtn=g('groq-abort-'+slot);
   if(fireBtn){fireBtn.disabled=true;fireBtn.innerHTML='<span class="spin">⟳</span>';}
   if(abortBtn)abortBtn.style.display='inline-flex';
@@ -5839,21 +6038,24 @@ async function fireGroqCustom(slot,customPrompt,sm,ctx,impressionsOnly){
     var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:model,messages:buildGroqMessages(slot,systemPrompt,fullPrompt),max_tokens:getMaxTokens(slot,systemPrompt,fullPrompt),temperature:0.3,reasoning_effort:mc.reasoningEffort,reasoning_format:mc.reasoningFormat}),
+      body:groqRequestBody(model,mc,buildGroqMessages(slot,systemPrompt,fullPrompt),getMaxTokens(slot,systemPrompt,fullPrompt),0.3),
       signal:groqAbortControllers[slot].signal
     });
     var data=await resp.json();
     if(fireBtn){fireBtn.disabled=false;fireBtn.textContent='▶ '+slot.toUpperCase();}
     if(abortBtn)abortBtn.style.display='none';
+    // v41.8: 404 = the id left the catalog; re-read, re-resolve, say so, retry once.
+    if(resp.status===404&&!notice){var healed=await healGroqSlot(slot,key,model);var moved=groqDeadSlotMessage(slot,mc,healed);if(outEl)outEl.value=moved;if(healed)return fireGroqCustom(slot,customPrompt,sm,ctx,impressionsOnly,moved);return;}
     if(resp.status===401){if(outEl)outEl.value='Invalid API key — check your Groq console';return;}
     if(resp.status===429){if(outEl)outEl.value='Groq rate limit reached — wait a moment and retry';return;}
-    if(resp.status!==200){var errMsg=data&&data.error&&data.error.message?data.error.message:JSON.stringify(data||{});var diag=resp.status===413?'\n\n\u26a0 413 = payload too large for this model OR TPM rolling window full. Try: trim FD/SM/C, wait 60s for the window to clear, or fire the GPT-OSS 120B slot: its 8K ceiling clears drafts that the Qwen 3.6 27B 6K ceiling rejects.':'';if(outEl)outEl.value='Groq Error '+resp.status+':\n'+errMsg+diag;return;}
+    if(resp.status!==200){var errMsg=data&&data.error&&data.error.message?data.error.message:JSON.stringify(data||{});var diag=resp.status===413?'\n\n\u26a0 413 = payload too large for this model OR TPM rolling window full. Try: trim FD/SM/C, wait 60s for the window to clear, or fire the other slot: each model budgets against its own registry row, and the slot label names what runs.':'';if(outEl)outEl.value='Groq Error '+resp.status+':\n'+errMsg+diag;return;}
     var result=data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:'No response.';
     result=result.trim();
     // v34.4 — If Sparring context was pre-truncated, prepend warning banner.
     if(wasTruncated){
       result='\u26a0 Source Material + Context Brief truncated to fit Slot '+slot.toUpperCase()+' ('+selfName+') token limit. Partial context analyzed.\n\n'+result;
     }
+    if(notice) result=notice+'\n\n'+result;
     if(outEl){outEl.value=result;onFC();}
     // v37.2 — Strip SESSION CONTEXT block from stored memory turn. Preserve
     // userQuestion (the user's typed HP prompt — that's the actual dialogue
@@ -5887,7 +6089,7 @@ function removeGroqKey(){
   setTimeout(function(){if(status)status.textContent='';},3000);
 }
 
-async function fireGroqBattle(slot,fieldId){
+async function fireGroqBattle(slot,fieldId,notice){
   var key=localStorage.getItem('cw_groq_key');
   if(!key)return;
   var cfg=GROQ_BATTLE_SLOT_MAP[slot];
@@ -5898,6 +6100,7 @@ async function fireGroqBattle(slot,fieldId){
   var model=getSlotModel(slot);
   var mc=getModelConfig(model);
   var selfName=mc.label;
+  if(!model){var noneEl=g(cfg.outputField);if(noneEl)noneEl.value=groqNoVoiceMessage(slot);return;}
   var isFormat=(fieldId==='snratio'||fieldId==='redflag');
   if(isFormat&&!fd){alert('Final Draft is empty. Add your final draft to Battle first.');return;}
   var fieldContent=v(fieldId)||'';
@@ -5961,10 +6164,12 @@ async function fireGroqBattle(slot,fieldId){
     var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:model,messages:buildGroqMessages(slot,systemPrompt,userMsg),max_tokens:getMaxTokens(slot,systemPrompt,userMsg),temperature:temp,reasoning_effort:mc.reasoningEffort,reasoning_format:mc.reasoningFormat}),
+      body:groqRequestBody(model,mc,buildGroqMessages(slot,systemPrompt,userMsg),getMaxTokens(slot,systemPrompt,userMsg),temp),
       signal:groqAbortControllers[slot].signal
     });
     if(fireBtn){fireBtn.disabled=false;fireBtn.textContent=origLabel;}
+    // v41.8: 404 = the id left the catalog; re-read, re-resolve, say so, retry once.
+    if(resp.status===404&&!notice){var healed=await healGroqSlot(slot,key,model);var moved=groqDeadSlotMessage(slot,mc,healed);if(outEl)outEl.value=moved;if(healed)return fireGroqBattle(slot,fieldId,moved);return;}
     if(resp.status===401){if(outEl)outEl.value='Invalid API key \u2014 check your Groq console';return;}
     if(resp.status===429){if(outEl)outEl.value='Groq rate limit reached \u2014 wait a moment and retry';return;}
     if(resp.status!==200){var errJson={};try{errJson=await resp.json();}catch(e){}var errMsg=errJson&&errJson.error&&errJson.error.message?errJson.error.message:JSON.stringify(errJson);if(outEl)outEl.value='Groq Error '+resp.status+':\n'+errMsg;return;}
@@ -5977,6 +6182,7 @@ async function fireGroqBattle(slot,fieldId){
     if(wasTruncated){
       result='\u26a0 Final Draft truncated to fit Slot '+slot.toUpperCase()+' ('+selfName+') token limit. Partial document analyzed.\n\n'+result;
     }
+    if(notice) result=notice+'\n\n'+result;
     if(outEl){outEl.value=result;onFC();}
     // v34.1 — strip embedded Final Draft before storing to memory.
     // The current call's userMsg keeps FD (model needs it now). Memory stores the
@@ -6001,31 +6207,21 @@ async function fireGroqBattle(slot,fieldId){
 }
 
 function initGroq(){
-  // v32.3 — Slot C benched. An install predating that bench can still have C
-  // switched on; clear the toggle. The model reset that used to live here is
-  // now covered by the v41.2 migration below.
-  if(localStorage.getItem('cw_groq_slot_c_model')==='llama-3.1-8b-instant'){
-    localStorage.setItem('cw_groq_slot_c_enabled','0');
-  }
-  // v41.2 — ROSTER MIGRATION. Every model shipped before v41.2 is retired or
-  // retiring: qwen/qwen3-32b (2026-07-17), llama-3.3-70b-versatile (2026-08-16),
-  // llama-3.1-8b-instant (benched since v32.3). Existing installs have those IDs
-  // sitting in localStorage and would fire them straight at a dead endpoint.
-  // Any slot holding an ID the registry does not know gets reset to that slot's
-  // default. Gating on MODEL_CONFIG membership rather than a hardcoded list of
-  // dead IDs means the next roster change inherits this migration for free.
-  // Also replaces the old slotDefaults object, which duplicated (and for Slot C
-  // contradicted) the defaultModel already declared in GROQ_SLOT_MAP.
-  ['a','b','c'].forEach(function(slot){
-    var cfg=GROQ_SLOT_MAP[slot];
-    var saved=localStorage.getItem(cfg.modelKey);
-    if(!saved || !MODEL_CONFIG[saved]){
-      saved=cfg.defaultModel;
-      localStorage.setItem(cfg.modelKey,saved);
-    }
-    var sel=g(cfg.dropdownId);if(sel)sel.value=saved;
-    updateGroqSlotUI(slot);
-  });
+  // v41.8: THE CATALOG FIRST. The v41.2 roster migration (reset any stored id
+  // the registry does not know to the slot's default) is subsumed: there are
+  // no defaults, the registry is built from the persisted catalog so offline
+  // and fresh loads keep a roster, every slot resolves from it, every dropdown
+  // renders from it, and a stored key triggers a live read that re-resolves
+  // in place. A stored id from any earlier roster that the catalog no longer
+  // lists is replaced by the resolution, never fired. The v32.3 benched-slot
+  // toggle reset that lived here is covered: a slot that resolves to nothing
+  // has its toggle forced off by resolveAllSlots.
+  loadGroqCatalog();
+  resolveAllSlots();
+  populateGroqDropdowns();
+  ['a','b','c'].forEach(function(slot){ updateGroqSlotUI(slot); });
+  var catalogKey=localStorage.getItem('cw_groq_key')||'';
+  if(catalogKey) readGroqCatalog(catalogKey);
   updateGroqBtn();
   // v34 — restore memory toggle state from localStorage (default ON if unset)
   var savedMemPref = localStorage.getItem('cw_groq_memory_enabled');
