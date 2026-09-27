@@ -71,6 +71,13 @@ The repository also carries `gmail.html`, a separate one-page tool that
 opens a prefilled Gmail compose from a link. It is not part of Combat
 Writing.
 
+## Provenance
+
+A dated, commit-anchored lineage and prior-art record for Combat Writing lives
+at [docs/combat-writing-prior-art.md](docs/combat-writing-prior-art.md): what
+appeared in which version and when, how to verify it, and what related work
+came before.
+
 ## Terms
 
 The app file's header carries its terms: personal use, modify it for
