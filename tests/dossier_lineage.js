@@ -3,7 +3,7 @@
 // Computes every lineage table and count in docs/combat-writing-prior-art.md from git.
 // Plain Node and git; no other program is called. Used two ways:
 //
-//   node tests/dossier_lineage.js --archive <clone of the origin repository> [--public <this repository>] [--public-head aef12ce] [--json]
+//   node tests/dossier_lineage.js --archive <clone of the origin repository> [--public <this repository>] [--public-head 548cb20] [--json]
 //     prints the four generated tables (public commits, origin commits, version lineage, feature genesis)
 //     as Markdown, or everything as JSON with --json.
 //
@@ -172,7 +172,7 @@ function strip(rows) { return rows.map(r => { const o = { ...r }; delete o.text;
 function main() {
   const args = process.argv.slice(2);
   const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-  const archive = opt('--archive'); const pubRepo = opt('--public', path.resolve(__dirname, '..')); const pubHead = opt('--public-head', 'aef12ce');
+  const archive = opt('--archive'); const pubRepo = opt('--public', path.resolve(__dirname, '..')); const pubHead = opt('--public-head', '548cb20');
   if (!archive) { console.error('usage: dossier_lineage.js --archive <origin clone> [--public <repo>] [--public-head <commit>] [--json]'); process.exit(2); }
   const arch = commitsOf(archive, 'origin/main'); const pub = commitsOf(pubRepo, pubHead);
   const lineage = versionLineage(arch, pub); const features = featureGenesis(arch, pub);
