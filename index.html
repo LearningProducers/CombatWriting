@@ -7,7 +7,7 @@
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  COMBAT WRITING — FILE MAP                                                   ║
-║  v41.8 · Council slots resolve from Groq's live model catalog (2026-09-21)   ║
+║  v41.9 · A round with no room for a full reply is refused (2026-10-05)       ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
 ║  ORIGIN (ruled 2026-07-16; reworded at v41.6 for public presentation, same   ║
@@ -83,8 +83,8 @@
 ║  L 5064–  5422  *** v41.8 registry from Groq's catalog + slot resolution *** ║
 ║  L 5423–  5658  getMaxTokens (dynamic, ALL slots), buildGroqMessages, memory ║
 ║  L 5659–  5878  Groq core: slot families, key/slot mgmt, syncGroqLabels, arm ║
-║  L 5879–  6206  Groq fire chain: fireGroq, fireGroqCustom, fireGroqBattle    ║
-║  L 6207–  6288  initGroq (v41.8 catalog first, armed state, slot toggles)    ║
+║  L 5879–  6205  Groq fire chain: fireGroq, fireGroqCustom, fireGroqBattle    ║
+║  L 6206–  6287  initGroq (v41.8 catalog first, armed state, slot toggles)    ║
 ║                                                                              ║
 ║  ── DOCTRINE LOCK ───────────────────────────────────────────────────────    ║
 ║  · Always run pre-deploy parser check (new Function(scriptBody)) before push ║
@@ -1780,7 +1780,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 </div>
 
 <div id="header">
-  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.8</button></div>
+  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.9</button></div>
   <div id="stage-nav">
     <button class="nav-pill" data-stage="STRATEGY" onclick="showStageTab('STRATEGY')">STRATEGY</button>
     <button class="nav-pill" data-stage="SPARRING"  onclick="showStageTab('SPARRING')">SPARRING</button>
@@ -1789,7 +1789,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
   </div>
   <div id="title-download-row">
     <input type="text" id="project-title-input" placeholder="PROJECT TITLE" oninput="onFC()">
-    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.8</button>
+    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.9</button>
   </div>
   <div class="save-area">
     <span class="save-group"><div class="save-dot" id="save-dot"></div><span class="save-lbl" id="save-lbl">READY</span></span>
@@ -2404,7 +2404,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
      their own filesystem; not the app's place to instruct). -->
 <div id="offline-version-banner" style="display:none;">
   <div class="ovb-inner">
-    <span class="ovb-label">Combat Writing v41.8</span>
+    <span class="ovb-label">Combat Writing v41.9</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
     <span class="ovb-msg">Always use the latest downloaded version</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
@@ -2436,7 +2436,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 // ─────────────────────────────────────────────
 //  FIELDS & CONSTANTS
 // ─────────────────────────────────────────────
-const APP_VERSION='v41.8';
+const APP_VERSION='v41.9';
 const FIELDS=[
   'project-title-input','sm','context',
   'label-x1','label-x2','label-x3',
@@ -4308,12 +4308,12 @@ async function downloadApp(){
     const blobUrl=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=blobUrl;
-    a.download='CombatWriting_v41.8.html';
+    a.download='CombatWriting_v41.9.html';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(blobUrl);document.body.removeChild(a);},2000);
   }catch(e){
-    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.8.html to your device.');
+    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.9.html to your device.');
   }
 }
 
@@ -4620,7 +4620,7 @@ function renderProvenance(st,sparringContributors,battleContributors){
   const rows=[
     ['Operator project',pEsc(title)],
     ['Date',pEsc(prnTs())],
-    ['App','Combat Writing v41.8']
+    ['App','Combat Writing v41.9']
   ];
   if(championLine){
     rows.push(['Status',pEsc(st.status)]);
@@ -4935,7 +4935,7 @@ function buildPlainTextSummary(st,sparringContributors,battleContributors){
   out+=`§ 10 — PROVENANCE\n\n`;
   out+=`Operator project:  ${title}\n`;
   out+=`Date:              ${prnTs()}\n`;
-  out+=`App:               Combat Writing v41.8\n`;
+  out+=`App:               Combat Writing v41.9\n`;
   // v36.1 — Status + Publication gated on CHAMPION
   if(championLine){
     out+=`Status:            ${st.status}\n`;
@@ -5421,8 +5421,8 @@ function getMemTokenBudget(slot){
 // fieldContent through untruncated: FD, SM and Context Brief are trimmed to
 // fdCharBudget, but a long paste into a question field is not.
 //
-// Returns 0 when the input alone cannot leave room for any output. Callers
-// must treat 0 as "do not fire" and say why. See groqBudgetError().
+// v41.9: returns 0 when the input leaves less than the floor for output (it
+// was: no room at all). Callers treat 0 as "do not fire" and say why: groqBudgetError().
 function getMaxTokens(slot, systemPrompt, userMsg){
   var mc = getSlotConfig(slot);
   // Called without prompts (a fire path whose signature drifted): return the
@@ -5445,10 +5445,10 @@ function getMaxTokens(slot, systemPrompt, userMsg){
   if(inputTokens + reservation > mc.hardCap){
     reservation = mc.hardCap - inputTokens;
   }
-  return reservation > 0 ? reservation : 0;
+  return reservation >= mc.floor ? reservation : 0;
 }
 
-// v41.2 — Pre-413. When getMaxTokens returns 0 the payload cannot fit at all,
+// v41.2 — Pre-413. getMaxTokens returns 0 when the reply cannot fit (v41.9: under the floor),
 // so firing would spend a request to buy a 413 the user has to decode. Return
 // an actionable message naming the actual overage instead. Returns '' when the
 // fire is safe to send.
@@ -5459,7 +5459,7 @@ function groqBudgetError(slot, systemPrompt, userMsg){
   var inputTokens = estimateTokens(systemPrompt) + estimateTokens(userMsg) + memReserve;
   return 'Too long to send. This round needs about ' + inputTokens.toLocaleString() +
          ' tokens of input and ' + getModelLabel(getSlotModel(slot)) + ' allows ' +
-         mc.hardCap.toLocaleString() + ' per minute, leaving no room for a reply.\n\n' +
+         mc.hardCap.toLocaleString() + ' per minute, which leaves less than the ' + mc.floor.toLocaleString() + '-token minimum for a reply.\n\n' +
          'Cut roughly ' + (inputTokens - mc.hardCap + mc.floor).toLocaleString() +
          ' tokens (about ' + ((inputTokens - mc.hardCap + mc.floor) * 4).toLocaleString() + ' characters) ' +
          'from the question field or the Final Draft and fire again.' +
@@ -6156,7 +6156,6 @@ async function fireGroqBattle(slot,fieldId,notice){
   var budgetErr=groqBudgetError(slot,systemPrompt,userMsg);
   if(budgetErr){
     if(fireBtn){fireBtn.disabled=false;fireBtn.textContent=origLabel;}
-    if(abortBtn)abortBtn.style.display='none';
     if(outEl){outEl.value=budgetErr;onFC();}
     return;
   }
