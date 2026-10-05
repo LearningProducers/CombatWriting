@@ -5,7 +5,7 @@
 Combat Writing is a single HTML file that battle-tests your communications.
 You bring the draft and the context; a crew of AI models attacks it from
 several angles; the weak parts get exposed and the strong parts survive.
-This README describes v41.8.
+This README describes v41.9.
 
 ## What it does
 
@@ -51,12 +51,12 @@ seconds what the local model is reliable for and what it is not.
 Open [combatwriting.learningproducers.com](https://combatwriting.learningproducers.com).
 
 Or press DOWNLOAD in the header, save the file it offers
-(`CombatWriting_v41.8.html`), and open it from your disk: the app runs from a
+(`CombatWriting_v41.9.html`), and open it from your disk: the app runs from a
 file, works offline once you have a copy, and keeps your session in the
 browser's own storage. No build, no server, no dependencies. The page has a
 phone layout; offline AI needs a desktop with Ollama.
 
-## What changed at v41.8
+## What changed at v41.8 and v41.9
 
 The previous README was born with the v41.7 public source and had its crew
 sentence updated at v41.8; everything else on this page is new.
@@ -66,6 +66,11 @@ sentence updated at v41.8; everything else on this page is new.
   slot showing an error: the slot re-reads the catalog and moves to the
   next live model in its family, or to another vendor's, or reads NO
   SECOND VOICE, and says which.
+- **v41.9.** A round too long to leave room for a full reply is refused
+  with a "Too long to send." message that says how much to cut. Before, a
+  Battle round over the model's per-minute limit stayed on "Groq
+  thinking..." with no message, and a round just under the limit was sent
+  with too little room for the reply.
 
 The repository also carries `gmail.html`, a separate one-page tool that
 opens a prefilled Gmail compose from a link. It is not part of Combat
