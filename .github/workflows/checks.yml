@@ -1,0 +1,28 @@
+# Runs every check in tests/ (files named *_check.js) on each pull request and on main.
+# Full history is fetched because tests/dossier_check.js reads the commits the record lists.
+# Actions are pinned to commits; the comment names the tag the commit carried when pinned.
+name: checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Run every tests/*_check.js
+        run: |
+          status=0
+          for f in tests/*_check.js; do
+            echo "== $f"
+            node "$f" || status=1
+          done
+          exit $status
