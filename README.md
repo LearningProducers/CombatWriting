@@ -5,7 +5,7 @@
 Combat Writing is a single HTML file that battle-tests your communications.
 You bring the draft and the context; a crew of AI models attacks it from
 several angles; the weak parts get exposed and the strong parts survive.
-This README describes v41.9.
+This README describes v41.10.
 
 ## What it does
 
@@ -51,12 +51,12 @@ seconds what the local model is reliable for and what it is not.
 Open [combatwriting.learningproducers.com](https://combatwriting.learningproducers.com).
 
 Or press DOWNLOAD in the header, save the file it offers
-(`CombatWriting_v41.9.html`), and open it from your disk: the app runs from a
+(`CombatWriting_v41.10.html`), and open it from your disk: the app runs from a
 file, works offline once you have a copy, and keeps your session in the
 browser's own storage. No build, no server, no dependencies. The page has a
 phone layout; offline AI needs a desktop with Ollama.
 
-## What changed at v41.8 and v41.9
+## What changed at v41.8, v41.9 and v41.10
 
 The previous README was born with the v41.7 public source and had its crew
 sentence updated at v41.8; everything else on this page is new.
@@ -71,6 +71,13 @@ sentence updated at v41.8; everything else on this page is new.
   Battle round over the model's per-minute limit stayed on "Groq
   thinking..." with no message, and a round just under the limit was sent
   with too little room for the reply.
+- **v41.10.** The terms. The header of the app file no longer offers
+  personal-use terms with permission to modify; it states that this
+  repository grants no license of any kind and names the plugin repository
+  as the only place a license is offered. A `COPYRIGHT` file at the
+  repository root carries the same statement, and `gmail.html` points to
+  it. Nothing in the app's behavior changed; the version moved because the
+  header is part of the file whose hash the prior-art record lists.
 
 The repository also carries `gmail.html`, a separate one-page tool that
 opens a prefilled Gmail compose from a link. It is not part of Combat
@@ -85,7 +92,15 @@ came before.
 
 ## Terms
 
-The app file's header carries its terms: personal use, modify it for
-yourself, no redistribution without written permission. Groq's API and the
-models served through it, Ollama, and the Dolphin3 model belong to their
-providers under their own terms; nothing here claims otherwise.
+Combat Writing is copyright Learning Producers, Inc. This repository grants
+no license of any kind. You may read the source, run the hosted app at
+[combatwriting.learningproducers.com](https://combatwriting.learningproducers.com),
+and download the app file for your own use. No license to modify,
+distribute, sublicense, sell or publish this software or any derivative is
+granted here. The only place a license to Combat Writing is offered is the
+plugin repository,
+[LearningProducers/CombatWriting-Plugin](https://github.com/LearningProducers/CombatWriting-Plugin).
+The statement is in the `COPYRIGHT` file at the repository root and in the
+header of `index.html`. Groq's API and the models served through it, Ollama,
+and the Dolphin3 model belong to their providers under their own terms;
+nothing here claims otherwise.
