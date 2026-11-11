@@ -9,7 +9,7 @@
 <!--
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  COMBAT WRITING — FILE MAP                                                   ║
-║  v41.10 · The terms: no license is granted here (2026-10-09)                 ║
+║  v41.11 · AI crew setup: a labeled button, a panel that scrolls (2026-11-11) ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
 ║  ORIGIN (ruled 2026-07-16; reworded at v41.6 for public presentation, same   ║
@@ -1487,27 +1487,23 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 .groq-arm-btn-battle:hover { background:#cc005711; color:#cc0057; border-color:#cc005788; }
 .groq-arm-btn-battle.armed { border-color:#cc0057; color:#cc0057; background:#cc005722; }
 
-/* ? button */
+/* AI CREW button (v41.11; was a 28px "?"). Font, padding and height come from
+   .hbtn so it stands level with the header buttons beside it. .needs-key is the
+   filled state while no key is saved; updateGroqBtn toggles it. */
 #groq-help-btn {
-  font-family:'Courier New',monospace;
-  font-size:calc(10px * var(--text-scale, 1));
-  font-weight:700;
-  padding:4px 8px;
-  border-radius:3px;
-  cursor:pointer;
-  background:transparent;
-  border:1px solid rgba(255,255,255,0.35);
-  color:#bbb;
-  transition:all 0.2s;
+  border:1px solid #7c6af755;
+  color:var(--purple);
   margin-left:2px;
+  white-space:nowrap;
   user-select:none;
   -webkit-user-select:none;
   touch-action:manipulation;
-  min-width:28px;
   min-height:28px;
   -webkit-tap-highlight-color:transparent;
 }
-#groq-help-btn:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.5); color:#fff; }
+#groq-help-btn:hover { background:#7c6af711; border-color:#7c6af799; }
+#groq-help-btn.needs-key { background:#7c6af733; border-color:var(--purple); color:#fff; }
+#groq-help-btn.needs-key:hover { background:#7c6af755; }
 
 /* Groq config drawer — inside Sparring card */
 /* v40.2 — max-height consumes --text-scale so the drawer ceiling tracks content
@@ -1521,13 +1517,23 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
    dimension that should track text density consumes --text-scale, not just font-size
    and letter-spacing. */
 #groq-config-drawer { background:#09050f; border-bottom:1px solid #7c6af722; overflow:hidden; max-height:0; transition:max-height 0.35s ease, opacity 0.3s ease; opacity:0; }
-#groq-config-drawer.open { max-height:calc(720px * var(--text-scale, 1)); opacity:1; }
+/* v41.11 — the open panel scrolls. Its content stood 1114px tall against this
+   rule's 936px ceiling with overflow hidden, so the last 178px could not be
+   reached. The ceiling is 80vh with overflow-y:auto at every width; the v41.1
+   mobile 1400px override is gone with the pixel ceiling it patched. */
+#groq-config-drawer.open { max-height:80vh; overflow-y:auto; opacity:1; }
 .groq-drawer-inner { padding:14px 16px 16px; }
 .groq-drawer-title { font-size:calc(12px * var(--text-scale, 1)); font-weight:700; letter-spacing:3px; color:#7c6af788; margin-bottom:12px; } /* v40.8 — 10px→12px for readability */
 .groq-key-row { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
 .groq-key-input { background:#0d1117; border:1px solid #7c6af733; border-radius:3px; color:var(--text); font-family:var(--font); font-size:calc(13px * var(--text-scale, 1)); padding:9px 12px; flex:1; outline:none; } /* v40.8 — 11px→13px, padding 7/10→9/12 */
 .groq-key-input:focus { border-color:#7c6af766; }
 .groq-key-input::placeholder { color:#3a3060; }
+/* v41.11 — on a phone the key row wraps: the key box takes the first line, SAVE KEY
+   and REMOVE KEY the line under it. At 390 wide REMOVE KEY ran past the right edge. */
+@media(max-width:800px){
+  .groq-key-row { flex-wrap:wrap; }
+  .groq-key-input { flex:1 1 100%; }
+}
 .groq-save-btn { font-family:var(--font); font-size:calc(11px * var(--text-scale, 1)); font-weight:700; letter-spacing:1px; padding:8px 16px; border-radius:3px; cursor:pointer; background:transparent; border:1px solid #7c6af755; color:var(--purple); transition:all 0.2s; white-space:nowrap; text-transform:uppercase; } /* v40.8 — 9px→11px, padding 7/14→8/16 */
 .groq-save-btn:hover:not(:disabled) { background:#7c6af711; }
 .groq-save-btn:disabled { opacity:0.5; cursor:not-allowed; }
@@ -1548,27 +1554,17 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 .groq-toggle-track:before { content:''; position:absolute; width:12px; height:12px; left:3px; bottom:3px; background:#555; border-radius:50%; transition:0.2s; }
 .groq-toggle input:checked + .groq-toggle-track { background:#cc005733; }
 .groq-toggle input:checked + .groq-toggle-track:before { background:#cc0057; transform:translateX(14px); }
-.groq-drawer-footer { font-size:calc(11px * var(--text-scale, 1)); color:#ffffff; letter-spacing:0.5px; margin-top:12px; padding-top:10px; border-top:1px solid #7c6af711; } /* v40.8 — 9px→11px */
-.groq-drawer-footer a { color:#7c6af766; text-decoration:none; }
-.groq-drawer-footer a:hover { color:var(--purple); }
+.groq-steps { font-size:calc(13px * var(--text-scale, 1)); line-height:1.7; color:#ffffff; margin-bottom:12px; padding:12px 14px; background:#7c6af718; border:1px solid #7c6af733; border-radius:4px; }
+.groq-steps-label { font-size:calc(11px * var(--text-scale, 1)); font-weight:700; letter-spacing:2px; color:#ffffff; margin-bottom:6px; }
+.groq-steps ol { margin:0; padding-left:2.4em; }
+.groq-steps a { color:var(--purple); font-weight:700; text-decoration:underline; }
+.groq-steps a:hover { color:#ffffff; }
+.groq-fold { margin-top:10px; border:1px solid #7c6af71a; border-radius:4px; background:#7c6af718; }
+.groq-fold > summary { cursor:pointer; padding:10px 14px; font-size:calc(11px * var(--text-scale, 1)); font-weight:700; letter-spacing:1px; color:#ffffff; user-select:none; -webkit-user-select:none; }
+.groq-fold > summary:hover { background:#7c6af711; }
+.groq-fold-body { padding:2px 14px 12px; font-size:calc(12px * var(--text-scale, 1)); line-height:1.75; color:#ffffff; }
+.groq-fold-body .groq-mem-label { margin-top:0; }
 
-/* v41.1 — Mobile max-height override.
-   The desktop ceiling `calc(720px * var(--text-scale, 1))` evaluates to ~936px
-   at desktop XL (1.30×) which fits the content with the v40.8 typography bumps.
-   On mobile `--text-scale` is locked to 1 (v40.1 mobile-textscale lock), so the
-   ceiling stayed at 720px — but the v40.8 absolute font-size bumps (drawer-title
-   10→12, key-input 11→13, key-warning 9→12, slots-label 9→11, slot-info 10→13,
-   slot-model 9→12, drawer-footer 9→11) plus longer mobile line-wrapping pushed
-   actual content height past 720px, clipping the HOW IT WORKS section. Mobile
-   bumped to 1400px — generous ceiling, content grows to its natural height,
-   nothing actually renders unnecessarily tall because max-height is a CEILING
-   not a fixed height. Extension of v35.1/v40.2 cascade-audit doctrine: when
-   font sizes are bumped, audit every container's height ceiling — and remember
-   that mobile breakpoints DON'T inherit `var(--text-scale)` scaling so the
-   `calc(px * var(--text-scale))` pattern won't auto-extend the ceiling there. */
-@media(max-width:800px){
-  #groq-config-drawer.open { max-height:1400px; }
-}
 /* v34 — Crew Memory section in Groq drawer */
 .groq-mem-label { font-size:calc(11px * var(--text-scale, 1)); font-weight:700; letter-spacing:2px; color:#cc005788; margin-top:14px; margin-bottom:8px; } /* v40.8 — 9px→11px */
 .groq-mem-note { font-size:calc(12px * var(--text-scale, 1)); color:#ffffff; letter-spacing:0.3px; line-height:1.6; margin-top:4px; padding:0 2px; } /* v40.8 — 9px→12px */
@@ -1745,13 +1741,13 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 <div id="groq-config-drawer">
   <div class="setup-drawer-inner">
     <div class="groq-drawer-title">⬤ GROQ CLOUD CREW — SETUP</div>
-    <div style="font-size:calc(12px * var(--text-scale, 1));line-height:1.75;color:#ffffff;margin-bottom:12px;border-radius:4px;overflow:hidden;border:1px solid #7c6af71a;">
-      <div style="padding:12px 14px;background:#7c6af718;">
-      <div style="font-weight:700;letter-spacing:1px;color:#ffffff;margin-bottom:9px;font-size:calc(11px * var(--text-scale, 1));">HOW IT WORKS</div>
-      <div style="margin-bottom:6px;">🎛 Toggle on how many open-source AI models you want active below — these become your <strong style="color:#ffffff;">Groq Crew</strong>. One key covers both slots.</div>
-      <div style="margin-bottom:6px;">⚔️ <strong style="color:#ffffff;">Sparring:</strong> Groq Crew automatically reads your Source Material and Context Brief. Fire individual slots or use <em style="color:#ffffff;">▶ Prompt Groq Crew</em> from Human Processing for a custom round.</div>
-      <div>🥊 <strong style="color:#ffffff;">Battle:</strong> S/N Ratio and Red Flag checks read the Final Draft automatically. Synthesis rounds (FQ, SFQ, N, SN) answer what you put in the field — toggle <strong>INCLUDE FD IN SYNTHESIS</strong> on to auto-append the Final Draft, or mention it in your question.</div>
-      </div>
+    <div class="groq-steps">
+      <div class="groq-steps-label">THREE STEPS</div>
+      <ol>
+        <li>Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>. No credit card.</li>
+        <li>Paste it below and press SAVE KEY.</li>
+        <li>Press ARM GROQ in the top bar. Your crew is ready in Sparring and Battle.</li>
+      </ol>
     </div>
     <div class="groq-key-warning">⚠ Never share your API key with anyone. It gives full access to your Groq account. It is never exported with your session.</div>
     <div class="groq-key-row">
@@ -1767,22 +1763,32 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
     </div>
     <div class="groq-slot-row">
       <div class="groq-slot-info"><strong>SLOT B</strong> &nbsp;·&nbsp; <span class="slot-model" id="groq-drawer-model-b">SAVE A GROQ KEY TO LOAD MODELS</span></div>
-      <label class="groq-toggle"><input type="checkbox" id="groq-toggle-b" onchange="saveGroqSlotEnabled('b',this.checked)"><span class="groq-toggle-track"></span></label>
+      <label class="groq-toggle"><input type="checkbox" id="groq-toggle-b" checked onchange="saveGroqSlotEnabled('b',this.checked)"><span class="groq-toggle-track"></span></label>
     </div>
-
-    <div class="groq-mem-label">CREW MEMORY</div>
-    <div class="groq-slot-row">
-      <div class="groq-slot-info"><strong>SESSION MEMORY</strong> &nbsp;·&nbsp; <span class="slot-model">Remember last 4 exchanges per slot · clears on session clear</span></div>
-      <label class="groq-toggle"><input type="checkbox" id="groq-memory-toggle" checked onchange="saveGroqMemoryToggle(this.checked)"><span class="groq-toggle-track"></span></label>
-    </div>
-    <div class="groq-mem-note"><strong>Per-slot memory.</strong> Slot A and Slot B keep separate threads. Sparring and Battle share memory within the same slot letter. Preserved on export/import.<ul style="margin:6px 0 0 0;padding-left:18px;"><li><strong>Slot A:</strong> the workhorse family (OpenAI's open-weight line). Fire it first on anything substantial.</li><li><strong>Slot B:</strong> a different model family (Alibaba's Qwen line, whichever is newest on Groq): a genuinely second perspective, not a smaller copy of Slot A. Fire after A, or alone on short docs.</li><li><strong>The roster is read live.</strong> Both slots pick their model from Groq's own catalog when you save a key and again whenever a model disappears, and the slot label always names what is running. If no second family is left, Slot B says NO SECOND VOICE instead of copying Slot A.</li><li><strong><code style="background:#1a1a1a;padding:1px 4px;border-radius:2px;color:#e06060;">413</code>:</strong> per-request cap OR TPM rolling window hit. Trim FD/SM/C if it's a size cap; wait 60s if it's the window. Error body tells you which.</li></ul></div>
-
-    <div class="groq-drawer-footer">Free tier — no credit card required &nbsp;·&nbsp; <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
+    <details class="groq-fold">
+      <summary>HOW IT WORKS</summary>
+      <div class="groq-fold-body">
+        <div style="margin-bottom:6px;">🎛 Toggle on how many open-source AI models you want active below — these become your <strong style="color:#ffffff;">Groq Crew</strong>. One key covers both slots.</div>
+        <div style="margin-bottom:6px;">⚔️ <strong style="color:#ffffff;">Sparring:</strong> Groq Crew automatically reads your Source Material and Context Brief. Fire individual slots or use <em style="color:#ffffff;">▶ Prompt Groq Crew</em> from Human Processing for a custom round.</div>
+        <div>🥊 <strong style="color:#ffffff;">Battle:</strong> S/N Ratio and Red Flag checks read the Final Draft automatically. Synthesis rounds (FQ, SFQ, N, SN) answer what you put in the field — toggle <strong>INCLUDE FD IN SYNTHESIS</strong> on to auto-append the Final Draft, or mention it in your question.</div>
+      </div>
+    </details>
+    <details class="groq-fold">
+      <summary>MEMORY, SLOT NOTES AND LIMITS</summary>
+      <div class="groq-fold-body">
+        <div class="groq-mem-label">CREW MEMORY</div>
+        <div class="groq-slot-row">
+          <div class="groq-slot-info"><strong>SESSION MEMORY</strong> &nbsp;·&nbsp; <span class="slot-model">Remember last 4 exchanges per slot · clears on session clear</span></div>
+          <label class="groq-toggle"><input type="checkbox" id="groq-memory-toggle" checked onchange="saveGroqMemoryToggle(this.checked)"><span class="groq-toggle-track"></span></label>
+        </div>
+        <div class="groq-mem-note"><strong>Per-slot memory.</strong> Slot A and Slot B keep separate threads. Sparring and Battle share memory within the same slot letter. Preserved on export/import.<ul style="margin:6px 0 0 0;padding-left:18px;"><li><strong>Slot A:</strong> the workhorse family (OpenAI's open-weight line). Fire it first on anything substantial.</li><li><strong>Slot B:</strong> a different model family (Alibaba's Qwen line, whichever is newest on Groq): a genuinely second perspective, not a smaller copy of Slot A. Fire after A, or alone on short docs.</li><li><strong>The roster is read live.</strong> Both slots pick their model from Groq's own catalog when you save a key and again whenever a model disappears, and the slot label always names what is running. If no second family is left, Slot B says NO SECOND VOICE instead of copying Slot A.</li><li><strong><code style="background:#1a1a1a;padding:1px 4px;border-radius:2px;color:#e06060;">413</code>:</strong> per-request cap OR TPM rolling window hit. Trim FD/SM/C if it's a size cap; wait 60s if it's the window. Error body tells you which.</li></ul></div>
+      </div>
+    </details>
   </div>
 </div>
 
 <div id="header">
-  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.10</button></div>
+  <div id="logo"><div class="title">COMBAT WRITING</div><div class="sub">READING IS PEACE &nbsp;·&nbsp; WRITING IS WAR</div><button class="hbtn hbtn-download mobile-dl-btn" onclick="downloadApp()">⬇ DOWNLOAD v41.11</button></div>
   <div id="stage-nav">
     <button class="nav-pill" data-stage="STRATEGY" onclick="showStageTab('STRATEGY')">STRATEGY</button>
     <button class="nav-pill" data-stage="SPARRING"  onclick="showStageTab('SPARRING')">SPARRING</button>
@@ -1791,11 +1797,11 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
   </div>
   <div id="title-download-row">
     <input type="text" id="project-title-input" placeholder="PROJECT TITLE" oninput="onFC()">
-    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.10</button>
+    <button class="hbtn hbtn-download" onclick="downloadApp()">⬇ DOWNLOAD v41.11</button>
   </div>
   <div class="save-area">
     <span class="save-group"><div class="save-dot" id="save-dot"></div><span class="save-lbl" id="save-lbl">READY</span></span>
-    <button id="ollama-btn" class="hbtn ollama-btn-offline" disabled onclick="toggleOllamaMode()" title="Ollama not detected">⬤ OFFLINE AI</button><button id="ollama-help-btn" onclick="toggleSetupDrawer()" title="Offline AI setup &amp; usage">?</button><button id="groq-arm-header-btn" class="hbtn" onclick="toggleGroqArmed()" style="display:none;font-family:var(--font);font-size:9px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:3px;cursor:pointer;background:transparent;border:1px solid #ffffff44;color:#888;text-transform:uppercase;transition:all 0.2s;" title="Arm Groq Crew">ARM GROQ</button><button id="groq-help-btn" onclick="toggleGroqDrawer()" title="Groq Cloud Crew setup &amp; usage">?</button>
+    <button id="ollama-btn" class="hbtn ollama-btn-offline" disabled onclick="toggleOllamaMode()" title="Ollama not detected">⬤ OFFLINE AI</button><button id="ollama-help-btn" onclick="toggleSetupDrawer()" title="Offline AI setup &amp; usage">?</button><button id="groq-arm-header-btn" class="hbtn" onclick="toggleGroqArmed()" style="display:none;font-family:var(--font);font-size:9px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:3px;cursor:pointer;background:transparent;border:1px solid #ffffff44;color:#888;text-transform:uppercase;transition:all 0.2s;" title="Arm Groq Crew">ARM GROQ</button><button id="groq-help-btn" class="hbtn needs-key" onclick="toggleGroqDrawer()" title="Set up the AI crew">AI CREW</button>
     <button class="hbtn" style="border:1px solid #d4a84355;color:var(--gold);" onclick="openSlotsOverlay()">💾 SLOTS</button>
     <button class="hbtn hbtn-teal"   onclick="exportAll()">EXPORT ALL</button>
     <label class="hbtn hbtn-purple"  style="cursor:pointer">IMPORT<input type="file" id="import-input" accept=".json" onchange="importState(event)"></label>
@@ -2406,7 +2412,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
      their own filesystem; not the app's place to instruct). -->
 <div id="offline-version-banner" style="display:none;">
   <div class="ovb-inner">
-    <span class="ovb-label">Combat Writing v41.10</span>
+    <span class="ovb-label">Combat Writing v41.11</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
     <span class="ovb-msg">Always use the latest downloaded version</span>
     <span class="ovb-sep">&nbsp;·&nbsp;</span>
@@ -2438,7 +2444,7 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 // ─────────────────────────────────────────────
 //  FIELDS & CONSTANTS
 // ─────────────────────────────────────────────
-const APP_VERSION='v41.10';
+const APP_VERSION='v41.11';
 const FIELDS=[
   'project-title-input','sm','context',
   'label-x1','label-x2','label-x3',
@@ -4310,12 +4316,12 @@ async function downloadApp(){
     const blobUrl=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=blobUrl;
-    a.download='CombatWriting_v41.10.html';
+    a.download='CombatWriting_v41.11.html';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(blobUrl);document.body.removeChild(a);},2000);
   }catch(e){
-    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.10.html to your device.');
+    alert('Download failed. Try right-clicking the page and selecting "Save As" to save CombatWriting_v41.11.html to your device.');
   }
 }
 
@@ -4622,7 +4628,7 @@ function renderProvenance(st,sparringContributors,battleContributors){
   const rows=[
     ['Operator project',pEsc(title)],
     ['Date',pEsc(prnTs())],
-    ['App','Combat Writing v41.10']
+    ['App','Combat Writing v41.11']
   ];
   if(championLine){
     rows.push(['Status',pEsc(st.status)]);
@@ -4937,7 +4943,7 @@ function buildPlainTextSummary(st,sparringContributors,battleContributors){
   out+=`§ 10 — PROVENANCE\n\n`;
   out+=`Operator project:  ${title}\n`;
   out+=`Date:              ${prnTs()}\n`;
-  out+=`App:               Combat Writing v41.10\n`;
+  out+=`App:               Combat Writing v41.11\n`;
   // v36.1 — Status + Publication gated on CHAMPION
   if(championLine){
     out+=`Status:            ${st.status}\n`;
@@ -5696,7 +5702,7 @@ function toggleGroqDrawer(){
   if(!isOpen){
     ['a','b','c'].forEach(function(slot){
       var t=g('groq-toggle-'+slot);
-      if(t){ var stored=localStorage.getItem(GROQ_SLOT_MAP[slot].enabledKey); t.checked=(stored!==null?stored:(slot==='a'?'1':'0'))==='1'; }
+      if(t){ var stored=localStorage.getItem(GROQ_SLOT_MAP[slot].enabledKey); t.checked=(stored!==null?stored:(slot==='c'?'0':'1'))==='1'; }
     });
     var key=localStorage.getItem('cw_groq_key')||'';
     var status=g('groq-key-status');
@@ -5782,7 +5788,7 @@ function getGroqLabel(slot){
 function updateGroqSlotUI(slot){
   var cfg=GROQ_SLOT_MAP[slot];
   var stored=localStorage.getItem(cfg.enabledKey);
-  var enabled=(stored!==null?stored:(slot==='a'?'1':'0'))==='1';
+  var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
   var row=g(cfg.rowId);
   if(row) row.classList.toggle('groq-slot-disabled',!enabled);
 }
@@ -5790,8 +5796,11 @@ function updateGroqSlotUI(slot){
 function updateGroqBtn(){
   var key=localStorage.getItem('cw_groq_key')||'';
   var dot=g('groq-dot'), armBtn=g('groq-arm-btn'), hdrBtn=g('groq-arm-header-btn'), battleHdrBtn=g('battle-arm-header-btn');
+  // v41.11: AI CREW is filled while no key is saved, a quiet outline once one is.
+  var crewBtn=g('groq-help-btn');
+  if(crewBtn)crewBtn.classList.toggle('needs-key',!key);
   if(!key){
-    if(dot){dot.className='groq-status-dot';dot.title='Groq not configured \u2014 click ? to set up';}
+    if(dot){dot.className='groq-status-dot';dot.title='Groq not configured. Click AI CREW to set up.';}
     if(armBtn)armBtn.style.display='none';
     if(hdrBtn)hdrBtn.style.display='none';
     if(battleHdrBtn)battleHdrBtn.style.display='none';
@@ -5969,8 +5978,8 @@ async function fireGroq(slot,notice){
 function fireGroqCustomPrompt(slot){
   var cfg=GROQ_SLOT_MAP[slot];
   var stored=localStorage.getItem(cfg.enabledKey);
-  var enabled=(stored!==null?stored:(slot==='a'?'1':'0'))==='1';
-  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in the Groq ? settings.');return;}
+  var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
+  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW setup.');return;}
   var prompt=g('human-notes').value.trim();
   if(!prompt){alert('Add a prompt in Human Processing first.');return;}
   var sm=g('sm').value.trim();
@@ -5990,7 +5999,7 @@ function fireGroqAll(){
   ['a','b','c'].forEach(function(slot){
     var cfg=GROQ_SLOT_MAP[slot];
     var stored=localStorage.getItem(cfg.enabledKey);
-    var enabled=(stored!==null?stored:(slot==='a'?'1':'0'))==='1';
+    var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
     if(enabled){
       var impressionsOnly=!sm;
       setTimeout(function(){ fireGroqCustom(slot,prompt,sm,ctx,impressionsOnly); }, delays[slot]);
@@ -6096,8 +6105,8 @@ async function fireGroqBattle(slot,fieldId,notice){
   if(!key)return;
   var cfg=GROQ_BATTLE_SLOT_MAP[slot];
   var stored=localStorage.getItem(cfg.enabledKey);
-  var enabled=(stored!==null?stored:(slot==='a'?'1':'0'))==='1';
-  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in the Groq ? settings.');return;}
+  var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
+  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW setup.');return;}
   var fd=v('final-draft')||'';
   var model=getSlotModel(slot);
   var mc=getModelConfig(model);

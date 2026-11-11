@@ -5,7 +5,7 @@
 Combat Writing is a single HTML file that battle-tests your communications.
 You bring the draft and the context; a crew of AI models attacks it from
 several angles; the weak parts get exposed and the strong parts survive.
-This README describes v41.10.
+This README describes v41.11.
 
 ## What it does
 
@@ -51,12 +51,12 @@ seconds what the local model is reliable for and what it is not.
 Open [combatwriting.learningproducers.com](https://combatwriting.learningproducers.com).
 
 Or press DOWNLOAD in the header, save the file it offers
-(`CombatWriting_v41.10.html`), and open it from your disk: the app runs from a
+(`CombatWriting_v41.11.html`), and open it from your disk: the app runs from a
 file, works offline once you have a copy, and keeps your session in the
 browser's own storage. No build, no server, no dependencies. The page has a
 phone layout; offline AI needs a desktop with Ollama.
 
-## What changed at v41.8, v41.9 and v41.10
+## What changed at v41.8, v41.9, v41.10 and v41.11
 
 The previous README was born with the v41.7 public source and had its crew
 sentence updated at v41.8; everything else on this page is new.
@@ -78,6 +78,11 @@ sentence updated at v41.8; everything else on this page is new.
   repository root carries the same statement, and `gmail.html` points to
   it. Nothing in the app's behavior changed; the version moved because the
   header is part of the file whose hash the prior-art record lists.
+- **v41.11.** The AI crew setup. The button that opens it reads AI CREW
+  in place of a "?". The open panel scrolls, so its last lines can be
+  reached; before, 178px of it could not. Three steps come first and the
+  reference text folds under two titles, closed. Both crew slots start
+  switched on for a visitor who has not set them.
 
 The repository also carries `gmail.html`, a separate one-page tool that
 opens a prefilled Gmail compose from a link. It is not part of Combat
