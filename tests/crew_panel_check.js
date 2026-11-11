@@ -20,6 +20,8 @@
 //   6. The slot default. With nothing stored, rows a and b are enabled and
 //      row c is disabled. With '0' stored for slot b, row b is disabled. The
 //      #groq-toggle-b input carries checked.
+//   7. On a phone the key row wraps: a rule under max-width:800px gives
+//      .groq-key-row flex-wrap:wrap, so REMOVE KEY cannot run off the edge.
 //
 // What it does not pin: how the page looks. Sizes, colors and whether the
 // last line of the open panel can be scrolled into view are measured in a
@@ -70,15 +72,17 @@ function extractVar(name){
   return html.slice(at,html.indexOf('\n',at));
 }
 
-// ── The stylesheet: every rule, with the rules inside @media blocks. ──
-function cssRules(css){
+// ── The stylesheet: every rule, with the rules inside @media blocks. Each
+//    rule carries the condition of the block it stands in ('' for none). ──
+function cssRules(css,within){
   var out=[], i=0;
+  within=within||'';
   while(i<css.length){
     var open=css.indexOf('{',i);
     if(open<0)break;
     var prelude=css.slice(i,open).trim(), close=braceEnd(css,open), body=css.slice(open+1,close);
-    if(/^@(media|supports|layer|container)\b/.test(prelude))out=out.concat(cssRules(body));
-    else if(prelude[0]!=='@')out.push({selectors:prelude.split(',').map(function(s){return s.trim();}),body:body});
+    if(/^@(media|supports|layer|container)\b/.test(prelude))out=out.concat(cssRules(body,(within+' '+prelude).trim()));
+    else if(prelude[0]!=='@')out.push({selectors:prelude.split(',').map(function(s){return s.trim();}),body:body,within:within});
     i=close+1;
   }
   return out;
@@ -93,7 +97,8 @@ var css=(html.match(/<style[^>]*>[\s\S]*?<\/style>/g)||[]).map(function(b){
   return b.replace(/^<style[^>]*>/,'').replace(/<\/style>$/,'');
 }).join('\n').replace(/\/\*[\s\S]*?\*\//g,'');
 var OPEN='#groq-config-drawer.open';
-var openRules=cssRules(css).filter(function(r){return r.selectors.indexOf(OPEN)>=0;});
+var rules=cssRules(css);
+var openRules=rules.filter(function(r){return r.selectors.indexOf(OPEN)>=0;});
 var ceilings=[], heights=[], overflowY=[];
 openRules.forEach(function(r){
   ceilings=ceilings.concat(declarations(r.body,'max-height'));
@@ -101,6 +106,14 @@ openRules.forEach(function(r){
   overflowY=overflowY.concat(declarations(r.body,'overflow-y'));
 });
 var VIEWPORT=/^\d+(\.\d+)?[sld]?vh$/;
+// What the phone rules (those under max-width:800px) say for one property of one selector.
+function phoneValues(selector,prop){
+  var out=[];
+  rules.forEach(function(r){
+    if(/max-width:\s*800px/.test(r.within)&&r.selectors.indexOf(selector)>=0)out=out.concat(declarations(r.body,prop));
+  });
+  return out;
+}
 
 // ── The panel: #groq-config-drawer, from its opening tag to its own </div>. ──
 function panelSource(){
@@ -205,6 +218,9 @@ store={}; store[app.map.b.enabledKey]='0';
 expect('6. \'0\' stored for slot b',slotStates(),{a:'enabled',b:'disabled',c:'disabled'});
 var toggleB=html.match(/<input\b[^>]*\bid="groq-toggle-b"[^>]*>/);
 expect('6. the #groq-toggle-b input carries checked',toggleB?/\schecked\b/.test(toggleB[0]):null,true);
+
+// 7. The key row wraps on a phone.
+expect('7. under max-width:800px, flex-wrap of .groq-key-row',phoneValues('.groq-key-row','flex-wrap'),['wrap']);
 
 finished=true;
 if(failures.length){

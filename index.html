@@ -1528,6 +1528,12 @@ body.ollama-mode #synth-fd-toggle-label { display:flex !important; }
 .groq-key-input { background:#0d1117; border:1px solid #7c6af733; border-radius:3px; color:var(--text); font-family:var(--font); font-size:calc(13px * var(--text-scale, 1)); padding:9px 12px; flex:1; outline:none; } /* v40.8 — 11px→13px, padding 7/10→9/12 */
 .groq-key-input:focus { border-color:#7c6af766; }
 .groq-key-input::placeholder { color:#3a3060; }
+/* v41.11 — on a phone the key row wraps: the key box takes the first line, SAVE KEY
+   and REMOVE KEY the line under it. At 390 wide REMOVE KEY ran past the right edge. */
+@media(max-width:800px){
+  .groq-key-row { flex-wrap:wrap; }
+  .groq-key-input { flex:1 1 100%; }
+}
 .groq-save-btn { font-family:var(--font); font-size:calc(11px * var(--text-scale, 1)); font-weight:700; letter-spacing:1px; padding:8px 16px; border-radius:3px; cursor:pointer; background:transparent; border:1px solid #7c6af755; color:var(--purple); transition:all 0.2s; white-space:nowrap; text-transform:uppercase; } /* v40.8 — 9px→11px, padding 7/14→8/16 */
 .groq-save-btn:hover:not(:disabled) { background:#7c6af711; }
 .groq-save-btn:disabled { opacity:0.5; cursor:not-allowed; }
@@ -5973,7 +5979,7 @@ function fireGroqCustomPrompt(slot){
   var cfg=GROQ_SLOT_MAP[slot];
   var stored=localStorage.getItem(cfg.enabledKey);
   var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
-  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW.');return;}
+  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW setup.');return;}
   var prompt=g('human-notes').value.trim();
   if(!prompt){alert('Add a prompt in Human Processing first.');return;}
   var sm=g('sm').value.trim();
@@ -6100,7 +6106,7 @@ async function fireGroqBattle(slot,fieldId,notice){
   var cfg=GROQ_BATTLE_SLOT_MAP[slot];
   var stored=localStorage.getItem(cfg.enabledKey);
   var enabled=(stored!==null?stored:(slot==='c'?'0':'1'))==='1';
-  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW.');return;}
+  if(!enabled){alert('Slot '+slot.toUpperCase()+' is not enabled. Enable it in AI CREW setup.');return;}
   var fd=v('final-draft')||'';
   var model=getSlotModel(slot);
   var mc=getModelConfig(model);
