@@ -5,7 +5,7 @@
 Combat Writing is a single HTML file that battle-tests your communications.
 You bring the draft and the context; a crew of AI models attacks it from
 several angles; the weak parts get exposed and the strong parts survive.
-This README describes v41.11.
+This README describes v41.12.
 
 ## What it does
 
@@ -34,9 +34,11 @@ id stops answering; slot A takes an OpenAI open-weight model and slot B a
 Qwen model, the preferred id if it is live, else the newest live one in the
 family, else the newest from another vendor, else the slot reads NO SECOND
 VOICE. No model id is pinned in the code, so a retired model never strands a
-slot, and the label always names what is running. Each slot keeps a short
-session memory. The key stays in your browser's storage and is never
-exported with a session.
+slot, and the label always names what is running. Each slot keeps up to
+four short notes on its own earlier rounds, each marked with the version of
+the draft that round read, and sends them only on a follow-up round (SFQ, N,
+SN, or a Human Processing prompt); a fresh read gets none. The key stays in
+your browser's storage and is never exported with a session.
 
 **Offline AI.** Run the crew's judging locally with Ollama and the Dolphin3
 model (8B). Desktop only. The setup drawer walks you through it: install
@@ -51,14 +53,14 @@ seconds what the local model is reliable for and what it is not.
 Open [combatwriting.learningproducers.com](https://combatwriting.learningproducers.com).
 
 Or press DOWNLOAD in the header, save the file it offers
-(`CombatWriting_v41.11.html`), and open it from your disk: the app runs from a
+(`CombatWriting_v41.12.html`), and open it from your disk: the app runs from a
 file, works offline once you have a copy, and keeps your session in the
 browser's own storage. No build, no server, no dependencies. The page has a
 phone layout; offline AI needs a desktop with Ollama.
 
 For Claude Code there is the [Combat Writing plugin for Claude Code](https://github.com/LearningProducers/CombatWriting-Plugin); its README describes Combat Writing as "a 19-step method in four stages, Strategy, Sparring, Battle, Champion, in which a draft is attacked by several AI models, rated against written rules, and the record shows what was caught."
 
-## What changed at v41.8, v41.9, v41.10 and v41.11
+## What changed at v41.8, v41.9, v41.10, v41.11 and v41.12
 
 The previous README was born with the v41.7 public source and had its crew
 sentence updated at v41.8; everything else on this page is new.
@@ -85,6 +87,21 @@ sentence updated at v41.8; everything else on this page is new.
   reached; before, 178px of it could not. Three steps come first and the
   reference text folds under two titles, closed. Both crew slots start
   switched on for a visitor who has not set them.
+- **v41.12.** The crew memory is explicit. Before, a slot kept its last
+  four exchanges and sent them back as chat history on every round, a
+  fresh read included, with nothing that said which draft each answer was
+  about. Now a slot keeps one short note per completed round: the round,
+  the rating the reply stated if the round asks for one, the opening of
+  the reply (120 words at most), and the version number of the draft it
+  read. The notes go out only on a follow-up round (SFQ, N, SN, a Human
+  Processing prompt), as one labeled block that names the draft version of
+  each note and of the round. A fresh read (the Sparring rating round, the
+  S/N Ratio check, the Red Flag check, FQ) sends none. After each round a
+  closed MEMORY SENT fold beside the slot's answer shows exactly what went
+  out. The cost: a session saved on v41.11 or earlier starts with empty
+  crew memory, once; everything else in it loads as before. Fixed on the
+  way: crew memory now survives a reload, and an import or a new session
+  no longer carries over the memory of the session it replaces.
 
 The repository also carries `gmail.html`, a separate one-page tool that
 opens a prefilled Gmail compose from a link. It is not part of Combat
