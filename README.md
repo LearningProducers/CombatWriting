@@ -56,6 +56,8 @@ file, works offline once you have a copy, and keeps your session in the
 browser's own storage. No build, no server, no dependencies. The page has a
 phone layout; offline AI needs a desktop with Ollama.
 
+For Claude Code there is the [Combat Writing plugin for Claude Code](https://github.com/LearningProducers/CombatWriting-Plugin); its README describes Combat Writing as "a 19-step method in four stages, Strategy, Sparring, Battle, Champion, in which a draft is attacked by several AI models, rated against written rules, and the record shows what was caught."
+
 ## What changed at v41.8, v41.9, v41.10 and v41.11
 
 The previous README was born with the v41.7 public source and had its crew
