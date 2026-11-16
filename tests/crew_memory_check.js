@@ -44,8 +44,8 @@
 //      A sentence added to the panel without a check fails.
 //   8. The version. APP_VERSION is v41.12.
 //
-// What it does not pin: what a real model does with the block (the gauntlet
-// ship gate, run by the owner in a browser), how the folds look (measured in
+// What it does not pin: what a real model does with the block (the gauntlet,
+// a ship gate run outside this page's tests), how the folds look (measured in
 // a browser), and Groq's API (the reply is invented).
 //
 // Run from the repo root:   node tests/crew_memory_check.js

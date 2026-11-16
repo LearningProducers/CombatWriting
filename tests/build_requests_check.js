@@ -22,8 +22,9 @@
 //   3. A sparring-hp body holds the Source Material and the Context Brief. A
 //      battle-fq body holds the Final Draft only when the page's INCLUDE FD IN
 //      SYNTHESIS setting would send it, and that setting is off by default.
-//   4. A fresh page: no request carries stored memory or a MEMORY NOTICE, also
-//      when an earlier round of the same run was on the same slot.
+//   4. A fresh page: a round not asked warm carries no stored memory and no
+//      MEMORY NOTICE, also when an earlier round of the same run was on the
+//      same slot.
 //   5. The model in each body is the one the page resolves from the catalog
 //      given. A catalog with one eligible model leaves the second slot with
 //      none, and a catalog with no eligible model builds nothing: exit 1.
@@ -37,7 +38,31 @@
 //      request.
 //   8. The lifting code is in one place: tests/page_lift.js holds the brace
 //      walk, and the builder and tests/crew_memory_check.js both use it. The
-//      builder holds no prompt text and names no model and no storage key.
+//      builder holds no prompt text and names no model and no storage key. It
+//      holds no memory text and does not decide which rounds send notes.
+//   9. A warm round. A round whose input has after is fired after that
+//      earlier round, on the same page and the same slot, through the page's
+//      buttons, with the earlier round's fetch answered by the reply text the
+//      input gives. Its body is the one the real fire functions send when the
+//      check fires the same two rounds itself: the system prompt of the cold
+//      round, then the page's own block with the page's own note on that
+//      reply. A memory text reworded in a scratch copy of the page comes out
+//      reworded.
+//  10. battle-nav, the N round of Battle: the page's request for it, cold and
+//      warm. The page counts it a follow-up; FQ it does not.
+//  11. memory_in_body. Every request says whether the page put a note into
+//      its body, and the answer follows the page: it turns with the page's
+//      list of follow-up rounds in a scratch copy, and a scratch page whose
+//      body is not what its memory plan describes builds nothing. It says
+//      what was measured, not what was asked: on a scratch page that holds a
+//      note of its own, a round nobody asked warm says true. A round
+//      asked warm that goes out with no note exits 1: a fresh read, a note
+//      the page had no room for, a page with memory off. A round not asked
+//      warm is the request it was before warm rounds existed, with one
+//      member, memory_in_body, added after the others.
+//  12. Only the round's own request is in the output. The earlier round's
+//      request, question and source material are nowhere in it. An earlier
+//      round that fails, fails the run.
 //
 // What it does not pin: what a real model answers (the requests are built,
 // never sent), Groq's API (the catalog and the reply are invented), how a
@@ -113,6 +138,28 @@ var ROUNDS=[
   {id:'ferry-south',path:'battle-fq',slot:'b',question:Q3},
   {id:'ferry-west',path:'sparring-hp',slot:'a',question:Q4,source_material:SOURCE_TWO}
 ];
+// A warm round's own texts, and the texts of the round that went before it.
+var Q5='Fixture question five: turn to the east pier board and say what it leaves out.';
+var Q_BEFORE='Fixture earlier question: is the dawn sailing printed anywhere on the pier?';
+var Q_BEFORE_TWO='Fixture earlier question two: who prints the board?';
+var SOURCE_BEFORE='Fixture earlier source material: the west pier has no board at all.';
+var REPLY_BEFORE='Fixture earlier reply: the dawn sailing is printed nowhere on the east pier. The board still says noon.';
+var REPLY_BEFORE_TWO='Fixture earlier reply two: the harbour office prints it, once, in spring.';
+// A reply longer than a note may be. Its opening is one sentence; its last words are a marker.
+var REPLY_LONG='Fixture long reply: the board is wrong. '+new Array(151).join('gull ')+'Fixture tail marker.';
+var WARM_NAV={id:'ferry-warm-nav',path:'battle-nav',slot:'a',question:Q5,after:{path:'battle-fq',question:Q_BEFORE,reply:REPLY_BEFORE}};
+var WARM_HP={id:'ferry-warm-hp',path:'sparring-hp',slot:'b',question:Q2,source_material:SOURCE,context:BRIEF,
+  after:{path:'sparring-hp',question:Q_BEFORE_TWO,source_material:SOURCE_BEFORE,reply:REPLY_BEFORE_TWO}};
+var WARM_SAME={id:'ferry-warm-same',path:'sparring-hp',slot:'a',question:Q4,source_material:SOURCE_TWO,
+  after:{path:'sparring-hp',question:Q_BEFORE_TWO,source_material:SOURCE_TWO,reply:REPLY_LONG}};
+var WARM_CROSS={id:'ferry-warm-cross',path:'battle-nav',slot:'b',question:Q5,draft:DRAFT,
+  after:{path:'sparring-hp',slot:'b',question:Q_BEFORE,source_material:SOURCE_BEFORE,context:BRIEF,reply:REPLY_BEFORE}};
+var COLD_NAV={id:'ferry-cold-nav',path:'battle-nav',slot:'a',question:Q5};
+var WARM=[WARM_NAV,WARM_HP,WARM_SAME,WARM_CROSS];
+// Warm rounds among rounds not asked warm, on both slots.
+var MIXED=[ROUNDS[0],WARM_NAV,ROUNDS[1],WARM_HP,COLD_NAV,WARM_SAME,ROUNDS[3],WARM_CROSS,ROUNDS[2]];
+function withAfter(round,after){var q=JSON.parse(JSON.stringify(round));q.after=after;return q;}
+function cold(round){var q=JSON.parse(JSON.stringify(round));delete q.after;return q;}
 
 // ── The builder, run as a program. ──
 var runs=0;
@@ -168,7 +215,7 @@ var FNS=['groqVendorOf','groqDerivedLabel','groqEligible','groqCatalogFromRecord
 // visitor's page does at load.
 function referencePage(catalog){
   if(!lift)throw new Error('tests/page_lift.js cannot be loaded');
-  var from=lift.from(html), el=lift.elements(), store={}, sends=[], alerts=[];
+  var from=lift.from(html), el=lift.elements(), store={}, sends=[], alerts=[], state={reply:REPLY};
   var page={
     g:el,
     v:function(id){return el(id).value.trim();},
@@ -177,7 +224,7 @@ function referencePage(catalog){
     onFC:function(){},
     fetch:function(url,opts){
       sends.push({url:String(url),body:JSON.parse(opts.body)});
-      return Promise.resolve({status:200,json:function(){return Promise.resolve({choices:[{message:{content:REPLY}}]});}});
+      return Promise.resolve({status:200,json:function(){return Promise.resolve({choices:[{message:{content:state.reply}}]});}});
     },
     AbortController:AbortController,
     // Page functions the request path calls and this check does not measure.
@@ -194,20 +241,35 @@ function referencePage(catalog){
   store[app.catalogKey]=JSON.stringify(catalog.data);
   app.loadGroqCatalog();
   app.resolveAllSlots();
-  return {app:app,el:el,store:store,sends:sends,alerts:alerts};
+  return {app:app,el:el,store:store,sends:sends,alerts:alerts,state:state};
+}
+// One round fired on the check's page by the real fire function, called
+// directly. field, when given, is a Battle field other than the path's own.
+async function fireReference(ref,spec,slot){
+  if(spec.path==='sparring-hp'){
+    await ref.app.fireGroqCustom(slot,spec.question.trim(),(spec.source_material||'').trim(),(spec.context||'').trim(),false);
+  } else {
+    var field=spec.field||spec.path.replace(/^battle-/,'');
+    ref.el('final-draft').value=spec.draft||'';
+    ref.el(field).value=spec.question;
+    await ref.app.fireGroqBattle(slot,field);
+  }
 }
 // The body the real fire function sends for one round, on a page of its own.
-// seed, when given, runs on that page before the round is fired.
+// seed, when given, runs on that page before the round is fired. A warm
+// round's earlier round is fired first on that page and that slot, and is
+// answered with the reply the round gives.
 async function referenceBody(catalog,round,seed){
   var ref=referencePage(catalog);
   if(seed)seed(ref);
-  if(round.path==='battle-fq'){
-    ref.el('final-draft').value=round.draft||'';
-    ref.el(round.field||'fq').value=round.question;
-    await ref.app.fireGroqBattle(round.slot,round.field||'fq');
-  } else {
-    await ref.app.fireGroqCustom(round.slot,round.question.trim(),(round.source_material||'').trim(),(round.context||'').trim(),false);
+  if(round.after){
+    ref.state.reply=round.after.reply;
+    await fireReference(ref,round.after,round.slot);
+    if(ref.sends.length!==1)throw new Error('the reference page sent '+ref.sends.length+' requests for the round before '+round.id+' (alerts: '+ref.alerts.join(' | ')+')');
+    ref.sends.length=0;
+    ref.state.reply=REPLY;
   }
+  await fireReference(ref,round,round.slot);
   if(ref.sends.length!==1)throw new Error('the reference page sent '+ref.sends.length+' requests for '+round.id+' (alerts: '+ref.alerts.join(' | ')+')');
   return ref.sends[0].body;
 }
@@ -224,7 +286,7 @@ async function referenceBody(catalog,round,seed){
     expect('1. the ids, in the input\'s order',requestsOf(good).map(function(q){return q.id;}),ROUNDS.map(function(q){return q.id;}));
     expect('1. the paths and the slots are the input\'s',requestsOf(good).map(function(q){return q.path+' '+q.slot;}),ROUNDS.map(function(q){return q.path+' '+q.slot;}));
     expect('1. the keys of each request, in order',requestsOf(good).map(function(q){return Object.keys(q).join();}),
-      ROUNDS.map(function(){return 'id,path,slot,model,url,body';}));
+      ROUNDS.map(function(){return 'id,path,slot,model,url,body,memory_in_body';}));
     expect('1. each url is the chat completions URL',requestsOf(good).map(function(q){return q.url;}),ROUNDS.map(function(){return CHAT_URL;}));
     expect('1. app_version is the page\'s APP_VERSION',(good.out||{}).app_version,(/\nconst APP_VERSION='([^']*)'/.exec(html)||[])[1]);
     expect('1. index_sha256 is the hash of the file that was read',(good.out||{}).index_sha256,crypto.createHash('sha256').update(fs.readFileSync(htmlPath)).digest('hex'));
@@ -406,6 +468,201 @@ async function referenceBody(catalog,round,seed){
     expect('8. the builder reads no environment and loads nothing that reaches a network',
       [builderText.length>0&&!/process\.env/.test(builderText),builderText.length>0&&!/require\('(?:node:)?(?:https?|http2|net|tls|dgram|dns|child_process)'\)/.test(builderText)],[true,true]);
     expect('8. the builder is not named as a check, so the workflow does not run it bare',/_check\.js$/.test(BUILDER),false);
+    // The builder's code, without its comments: the comments may say what the page does.
+    var builderCode=builderText.split('\n').filter(function(l){return !/^\s*\/\//.test(l);}).join('\n');
+    expect('8. the builder\'s code holds no memory text',builderCode.length>1000&&!/CREW MEMORY|MEMORY NOTICE|MEMORY SENT|earlier reads|draft version|read no draft|stored note|fresh read/i.test(builderCode),true);
+    expect('8. the builder does not decide which rounds send notes: it reads no list of follow-up rounds and asks the page no such question',
+      builderCode.length>1000&&!/GROQ_FOLLOWUP_STAGES\s*[\[.=]|isGroqFollowUp\s*\(|groqMemoryBlock\s*\(|planGroqMemory\s*\(|appendGroqMemory\s*\(|makeGroqNote\s*\(|groqMemory\s*\[[^\]]*\]\s*(?:=|\.push)/.test(builderCode),true);
+  });
+
+  // 9. A warm round.
+  var mixed=run({catalog:CATALOG,rounds:MIXED});
+  var at=function(round){return MIXED.indexOf(round);};
+  await group('9. a warm round',async function(){
+    expect('9. warm rounds among rounds not asked warm: the run exits 0 and writes nothing to stderr',[mixed.status,mixed.stderr],[0,'']);
+    expect('9. one request per round, the ids in the input\'s order',requestsOf(mixed).map(function(q){return q.id;}),MIXED.map(function(q){return q.id;}));
+    var colds=run({catalog:CATALOG,rounds:WARM.map(cold)});
+    expect('9. the same rounds not asked warm build too',[colds.status,requestsOf(colds).length],[0,WARM.length]);
+    for(var i=0;i<WARM.length;i++){
+      var round=WARM[i], body=bodyOf(mixed,at(round)), bare=bodyOf(colds,i), ref=await referenceBody(CATALOG,round);
+      expect('9. '+round.id+' sends two messages: system, user',(body.messages||[]).map(function(m){return m.role;}),['system','user']);
+      expect('9. '+round.id+' the whole body is the one the real fire functions send for the two rounds, one after the other, on one page and one slot',body,ref);
+      expect('9. '+round.id+' the system message opens with the system prompt of the same round not asked warm, and goes on',
+        [String(sys(body)).indexOf(sys(bare)),String(sys(body)).length>String(sys(bare)).length,String(sys(bare)).length>500],[0,true,true]);
+      expect('9. '+round.id+' the user message is the one the same round sends when not asked warm',user(body),user(bare));
+      expect('9. '+round.id+' the check\'s own page sent more than the bare system prompt, so the two bodies compared are warm ones',String(sys(ref)).length>String(sys(bare)).length,true);
+    }
+    // The note is the page's own cut of the reply the input gave.
+    var added=function(round){return String(sys(bodyOf(mixed,at(round)))).slice(String(sys(bodyOf(run({catalog:CATALOG,rounds:[cold(round)]}),0))).length);};
+    expect('9. ferry-warm-nav: what the page added holds the earlier reply, whole, since it is short',added(WARM_NAV).indexOf(REPLY_BEFORE)>0,true);
+    expect('9. ferry-warm-hp: what the page added holds its own earlier reply and not another round\'s',[added(WARM_HP).indexOf(REPLY_BEFORE_TWO)>0,added(WARM_HP).indexOf(REPLY_BEFORE)],[true,-1]);
+    expect('9. ferry-warm-cross: a Battle round after a Sparring round on slot B carries that Sparring reply',added(WARM_CROSS).indexOf(REPLY_BEFORE)>0,true);
+    expect('9. ferry-warm-same: a long reply is cut by the page: its opening sentence is there, its last words are not',
+      [added(WARM_SAME).indexOf('Fixture long reply: the board is wrong.')>0,/Fixture tail marker|gull/.test(JSON.stringify(bodyOf(mixed,at(WARM_SAME))))],[true,false]);
+    // The page numbers the drafts a slot has read. The numbers are the page's; the check's page gives them.
+    var numbers=function(round){return (added(round).match(/version \d+/g)||[]).join();};
+    expect('9. ferry-warm-hp read a second text after a first; ferry-warm-same read one text twice',[numbers(WARM_HP),numbers(WARM_SAME)],['version 2,version 1','version 1,version 1']);
+    // The earlier reply reaches the page as it arrived, not as typed text.
+    var crlf=withAfter(WARM_NAV,{path:'battle-fq',question:Q_BEFORE,reply:'  Fixture earlier reply three:\r\n\r\nline two.  '});
+    var r=run({catalog:CATALOG,rounds:[crlf]});
+    expect('9. a reply with carriage returns and outer white space is the page\'s to clean',[r.status,bodyOf(r,0)],[0,await referenceBody(CATALOG,crlf)]);
+    // A different reply, a different request; the same reply, the same request.
+    var other=run({catalog:CATALOG,rounds:[withAfter(WARM_NAV,{path:'battle-fq',question:Q_BEFORE,reply:REPLY_BEFORE_TWO})]});
+    var again=run({catalog:CATALOG,rounds:[WARM_NAV]});
+    expect('9. the request turns with the reply text given',[sys(bodyOf(other,0)).indexOf(REPLY_BEFORE_TWO)>0,sys(bodyOf(other,0)).indexOf(REPLY_BEFORE)],[true,-1]);
+    expect('9. the same warm round, alone in a run, is the same request, byte for byte',JSON.stringify(requestsOf(again)[0])===JSON.stringify(requestsOf(mixed)[at(WARM_NAV)])&&requestsOf(again).length===1,true);
+    // The earlier round's slot is the round's.
+    var sameSlot=withAfter(WARM_NAV,{path:'battle-fq',slot:'a',question:Q_BEFORE,reply:REPLY_BEFORE});
+    expect('9. an earlier round that names the round\'s own slot is the same request',bodyOf(run({catalog:CATALOG,rounds:[sameSlot]}),0),bodyOf(mixed,at(WARM_NAV)));
+    // The memory text is the page's. Reworded in a scratch copy, it comes out reworded.
+    var block=lift.from(html).fn('groqMemoryBlock');
+    var reworded=variant('memory-reworded',function(t){
+      return t.replace(block,'function groqMemoryBlock(notes, draft){ return \'Fixture block, an invented rewrite, reading \' + draft + \': \' + notes.map(function(n){ return n.points; }).join(\' / \'); }');
+    });
+    var rw=run({catalog:CATALOG,rounds:[WARM_NAV,WARM_HP]},reworded);
+    expect('9. on a page whose memory text is rewritten, the warm rounds build and say they carry memory',[rw.status,requestsOf(rw).map(function(q){return q.memory_in_body;})],[0,[true,true]]);
+    expect('9. and their system messages end with the rewritten text, with nothing of the old wording',
+      [/Fixture block, an invented rewrite, reading null: Fixture earlier reply: the dawn sailing is printed nowhere on the east pier\. The board still says noon\.$/.test(sys(bodyOf(rw,0))),
+       /Fixture block, an invented rewrite, reading 2: Fixture earlier reply two: the harbour office prints it, once, in spring\.$/.test(sys(bodyOf(rw,1))),
+       /CREW MEMORY|earlier reads/i.test(rw.stdout)],[true,true,false]);
+    // Through the page's buttons: a page without the button of either round builds nothing.
+    expectRefused('9. a page with no FQ button for slot A cannot fire the earlier round',
+      run({catalog:CATALOG,rounds:[WARM_NAV]},variant('no-button-earlier',function(t){return t.replace('onclick="fireGroqBattle(\'a\',\'fq\')"','onclick="void 0"');})),1,['ferry-warm-nav',/earlier round/,/button/i]);
+    expectRefused('9. a page with no Human Processing button for slot B cannot fire the earlier round',
+      run({catalog:CATALOG,rounds:[WARM_CROSS]},variant('no-button-earlier-hp',function(t){return t.replace('onclick="fireGroqCustomPrompt(\'b\')"','onclick="void 0"');})),1,['ferry-warm-cross',/earlier round/,/button/i]);
+  });
+
+  // 10. battle-nav, the N round of Battle.
+  await group('10. battle-nav',async function(){
+    var i=at(COLD_NAV), body=bodyOf(mixed,i), ref=await referenceBody(CATALOG,COLD_NAV);
+    expect('10. a battle-nav round builds: path, slot, url',[(requestsOf(mixed)[i]||{}).path,(requestsOf(mixed)[i]||{}).slot,(requestsOf(mixed)[i]||{}).url],['battle-nav','a',CHAT_URL]);
+    expect('10. the whole body is the one the real fire function sends for the N field',body,ref);
+    expect('10. the user message holds the question',String(user(body)).indexOf(Q5)>=0,true);
+    var fq=await referenceBody(CATALOG,{id:'fq',path:'battle-fq',slot:'a',question:Q5});
+    expect('10. its system prompt is the FQ one without the FQ directive',[String(sys(fq)).indexOf(sys(body)),String(sys(fq)).length>String(sys(body)).length,String(sys(body)).length>500],[0,true,true]);
+    var page=referencePage(CATALOG);
+    expect('10. the page counts battle-nav a follow-up and battle-fq a fresh read',[page.app.isGroqFollowUp('battle-nav'),page.app.isGroqFollowUp('battle-fq')],[true,false]);
+    expect('10. the page\'s markup has the N field and its button for each slot',
+      [/<textarea\b[^>]*\sid="nav"/.test(html),html.indexOf('onclick="fireGroqBattle(\'a\',\'nav\')"')>0,html.indexOf('onclick="fireGroqBattle(\'b\',\'nav\')"')>0],[true,true,true]);
+    var withDraft=run({catalog:CATALOG,rounds:[{id:'ferry-nav-draft',path:'battle-nav',slot:'a',question:Q5,draft:DRAFT}]});
+    expect('10. with INCLUDE FD IN SYNTHESIS off, a battle-nav round given a draft sends the same body and no draft',[bodyOf(withDraft,0),said(bodyOf(withDraft,0)).indexOf(DRAFT)],[body,-1]);
+    expectRefused('10. a page with no N button for slot A',run({catalog:CATALOG,rounds:[COLD_NAV]},variant('no-nav-button',function(t){return t.replace('onclick="fireGroqBattle(\'a\',\'nav\')"','onclick="void 0"');})),1,['ferry-cold-nav',/button/i]);
+    expectRefused('10. a page with no N field',run({catalog:CATALOG,rounds:[COLD_NAV]},variant('no-nav-field',function(t){return t.replace('<textarea id="nav"','<textarea id="nav-gone"');})),1,['ferry-cold-nav','nav']);
+    expectRefused('10. the other follow-up rounds of Battle are still not paths',run({catalog:CATALOG,rounds:[{id:'ferry-sn',path:'battle-sn',slot:'a',question:Q5}]}),1,['ferry-sn','battle-sn']);
+  });
+
+  // 11. memory_in_body, and a warm round with no note.
+  await group('11. memory_in_body',async function(){
+    expect('11. the first run: every request says it carries no memory',requestsOf(good).map(function(q){return q.memory_in_body;}),[false,false,false,false]);
+    expect('11. the mixed run: true for each round asked warm, false for each that was not',requestsOf(mixed).map(function(q){return q.memory_in_body;}),MIXED.map(function(q){return !!q.after;}));
+    expect('11. the keys of each request, warm or not, in order',requestsOf(mixed).map(function(q){return Object.keys(q).join();}),MIXED.map(function(){return 'id,path,slot,model,url,body,memory_in_body';}));
+    // A round not asked warm is the request it was.
+    var before=[ROUNDS[0],ROUNDS[1],ROUNDS[3],ROUNDS[2]].map(function(round){return JSON.stringify(requestsOf(good)[ROUNDS.indexOf(round)]);});
+    var after=[ROUNDS[0],ROUNDS[1],ROUNDS[3],ROUNDS[2]].map(function(round){return JSON.stringify(requestsOf(mixed)[at(round)]);});
+    expect('11. a round not asked warm is the same request, byte for byte, in a run that holds warm rounds',[after.join('\n')===before.join('\n'),before.join('').length>4000],[true,true]);
+    expect('11. and it carries no memory text: its system prompt is the bare one the real fire function sends on a page with no notes',
+      [ROUNDS[0],ROUNDS[1],ROUNDS[3],ROUNDS[2]].map(function(round){return sys(bodyOf(mixed,at(round)))===sys(refs[ROUNDS.indexOf(round)]);}),[true,true,true,true]);
+    var pretty=function(q){var o={id:q.id,path:q.path,slot:q.slot,model:q.model,url:q.url,body:q.body};return JSON.stringify(o);};
+    expect('11. memory_in_body is the one member added: without it a request is id, path, slot, model, url, body, as before',
+      requestsOf(good).map(function(q){var o=JSON.parse(JSON.stringify(q));delete o.memory_in_body;return JSON.stringify(o)===pretty(q);}),[true,true,true,true]);
+
+    // A round asked warm that goes out with no note exits 1.
+    var fresh={id:'ferry-fresh',path:'battle-fq',slot:'a',question:Q1,after:{path:'battle-fq',question:Q_BEFORE,reply:REPLY_BEFORE}};
+    expectRefused('11. a battle-fq round asked warm: the page sends it as a fresh read',run({catalog:CATALOG,rounds:[fresh]}),1,['ferry-fresh',/asked warm/]);
+    expectRefused('11. one such round among good ones hands over no request',run({catalog:CATALOG,rounds:[ROUNDS[0],WARM_NAV,fresh,ROUNDS[1]]}),1,['ferry-fresh']);
+    var tooBig=withAfter(WARM_NAV,{path:'battle-fq',question:Q_BEFORE,reply:new Array(8001).join('x')});
+    tooBig.id='ferry-no-room';
+    var ref=await referenceBody(CATALOG,tooBig), bare=await referenceBody(CATALOG,cold(tooBig));
+    expect('11. a reply of one unbroken word, 8,000 letters: the page has no room for its note and sends a notice in its place',
+      [String(sys(ref)).indexOf('xxxxxxxx'),String(sys(ref)).length>String(sys(bare)).length],[-1,true]);
+    expectRefused('11. that round asked warm',run({catalog:CATALOG,rounds:[tooBig]}),1,['ferry-no-room',/asked warm/]);
+
+    // The answer follows the page's own list of follow-up rounds.
+    var stages=lift.from(html).variable('GROQ_FOLLOWUP_STAGES');
+    var navFresh=variant('nav-is-fresh',function(t){return t.replace(stages,stages.replace("'battle-nav':1, ",''));});
+    expectRefused('11. on a scratch page that counts battle-nav a fresh read, the warm battle-nav round',run({catalog:CATALOG,rounds:[WARM_NAV]},navFresh),1,['ferry-warm-nav',/asked warm/]);
+    var onNavFresh=run({catalog:CATALOG,rounds:[COLD_NAV,WARM_HP]},navFresh);
+    expect('11. on that page the round not asked warm still builds, and the warm Sparring round still carries memory',[onNavFresh.status,requestsOf(onNavFresh).map(function(q){return q.memory_in_body;})],[0,[false,true]]);
+    var fqFollows=variant('fq-is-follow-up',function(t){return t.replace(stages,stages.replace("{ ","{ 'battle-fq':1, "));});
+    var onFqFollows=run({catalog:CATALOG,rounds:[fresh,ROUNDS[0]]},fqFollows);
+    expect('11. on a scratch page that counts battle-fq a follow-up, the warm battle-fq round builds with memory, and the cold one without',
+      [onFqFollows.status,requestsOf(onFqFollows).map(function(q){return q.memory_in_body;}),String(sys(bodyOf(onFqFollows,0))).indexOf(REPLY_BEFORE)>0],[0,[true,false],true]);
+    // A page with SESSION MEMORY off for a new visitor stores no note.
+    var boot=lift.from(html).fn('initGroq');
+    var memoryOff=variant('memory-off',function(t){return t.replace(boot,boot.replace("(savedMemPref === null) ? true :","(savedMemPref === null) ? false :"));});
+    expectRefused('11. on a scratch page that boots with SESSION MEMORY off, a warm round',run({catalog:CATALOG,rounds:[WARM_NAV]},memoryOff),1,['ferry-warm-nav']);
+    // A page that stores the note and leaves it out of the request.
+    var builds=lift.from(html).fn('buildGroqMessages');
+    var leftOut=variant('note-left-out',function(t){return t.replace(builds,builds.replace("content: plan.added ? systemPrompt + '\\n\\n' + plan.added : systemPrompt","content: systemPrompt"));});
+    expectRefused('11. on a scratch page whose memory plan names a note that the system message does not hold, a warm round',run({catalog:CATALOG,rounds:[WARM_NAV]},leftOut),1,['ferry-warm-nav',/memory plan/]);
+    expect('11. on that page a round not asked warm, whose plan adds nothing, still builds',run({catalog:CATALOG,rounds:[COLD_NAV]},leftOut).status,0);
+    // A page that changes the system message after its message builder returned it.
+    var battle=lift.from(html).fn('fireGroqBattle');
+    var changedAfter=variant('changed-after',function(t){
+      return t.replace(battle,battle.replace('var messages=buildGroqMessages(slot,systemPrompt,userMsg,stage,draftText);','var messages=buildGroqMessages(slot,systemPrompt,userMsg,stage,draftText);messages[0].content+=\' An invented sentence the plan does not name.\';'));
+    });
+    expectRefused('11. on a scratch page that adds to the system message outside its memory plan, a Battle round',run({catalog:CATALOG,rounds:[COLD_NAV]},changedAfter),1,['ferry-cold-nav',/message builder/]);
+    // What is said is what was measured, not what was asked: a scratch page that holds a note
+    // of its own before an N round sends that note on a round nobody asked warm.
+    var holdsNote=variant('holds-a-note',function(t){
+      return t.replace(battle,battle.replace('{','{if(fieldId===\'nav\'&&!groqMemory[slot].length)groqMemory[slot].push(makeGroqNote(\'battle-fq\',\'An invented reply the scratch page held already.\',null));'));
+    });
+    var held=run({catalog:CATALOG,rounds:[COLD_NAV,ROUNDS[0]]},holdsNote);
+    expect('11. on a scratch page that holds a note of its own, a round not asked warm says it carries memory, and it does',
+      [held.status,requestsOf(held).map(function(q){return q.memory_in_body;}),String(sys(bodyOf(held,0))).indexOf('An invented reply the scratch page held already.')>0],[0,[true,false],true]);
+    // A page whose message builder hands back no plan cannot be measured.
+    var noPlan=variant('no-plan',function(t){return t.replace(builds,builds.replace('messages.memory = plan;',''));});
+    expectRefused('11. on a scratch page whose message builder hands back no memory plan, a round',run({catalog:CATALOG,rounds:[ROUNDS[0]]},noPlan),1,['ferry-north',/memory plan/]);
+  });
+
+  // 12. Only the round's own request.
+  await group('12. the earlier round is not in the output',async function(){
+    expect('12. nine rounds in, four of them warm: nine requests out',[MIXED.length,requestsOf(mixed).length],[9,9]);
+    expect('12. each request\'s user message holds its own round\'s question',requestsOf(mixed).map(function(q,i){return String(user(q.body)).indexOf(MIXED[i].question)>=0;}),MIXED.map(function(){return true;}));
+    expect('12. no earlier round\'s question is anywhere in the output',[mixed.stdout.length>0,/Fixture earlier question/.test(mixed.stdout)],[true,false]);
+    expect('12. no earlier round\'s source material is anywhere in the output',/Fixture earlier source material/.test(mixed.stdout),false);
+    expect('12. the earlier round\'s request is not the one handed on: each warm request is its own round\'s path',
+      WARM.map(function(round){var q=requestsOf(mixed)[at(round)]||{};return q.path+' '+q.slot;}),WARM.map(function(round){return round.path+' '+round.slot;}));
+    // An FQ request is known by its directive. A warm N round after an FQ round must not be it.
+    var fq=await referenceBody(CATALOG,{id:'fq',path:'battle-fq',slot:'a',question:Q_BEFORE});
+    var directive=String(sys(fq)).slice(String(sys(await referenceBody(CATALOG,cold(WARM_NAV)))).length);
+    expect('12. the FQ round\'s own directive, which the earlier request carried, is not in the warm N request',[directive.length>50,String(sys(bodyOf(mixed,at(WARM_NAV)))).indexOf(directive)],[true,-1]);
+    expect('12. the builder\'s own stand-in reply is nowhere in the output',/Nothing was sent/.test(mixed.stdout),false);
+
+    // An earlier round that fails, fails the run.
+    var after=function(extra,id){var e={path:'battle-fq',question:Q_BEFORE,reply:REPLY_BEFORE};Object.keys(extra).forEach(function(k){e[k]=extra[k];});var q=withAfter(WARM_NAV,e);q.id=id||'ferry-after';return {catalog:CATALOG,rounds:[q]};};
+    expectRefused('12. an earlier round with an empty question',run(after({question:'  '})),1,['ferry-after',/earlier round/]);
+    expectRefused('12. an earlier round too long for the model\'s budget',run(after({question:Q_BEFORE+' '+new Array(8001).join('ferry ')})),1,['ferry-after',/earlier round/,'Too long to send']);
+    expectRefused('12. an earlier sparring-hp round with no Source Material',run(after({path:'sparring-hp'})),1,['ferry-after',/earlier round/,/impressions/i]);
+    expectRefused('12. an earlier round on a path that is not one',run(after({path:'battle-sfq'})),1,['ferry-after',/earlier round/,'battle-sfq']);
+    expectRefused('12. an earlier round with no reply',run(after({reply:undefined})),1,['ferry-after',/reply/]);
+    expectRefused('12. an earlier reply that is not a text',run(after({reply:{text:REPLY_BEFORE}})),1,['ferry-after',/reply/]);
+    expectRefused('12. an earlier reply that is empty',run(after({reply:' \n '})),1,['ferry-after',/reply/]);
+    expectRefused('12. an earlier draft that is not a text',run(after({draft:7})),1,['ferry-after',/earlier round/]);
+    expectRefused('12. an earlier round on another slot',run(after({slot:'b'})),1,['ferry-after',/slot/]);
+    expectRefused('12. an earlier round with an earlier round of its own',run(after({after:{path:'battle-fq',question:Q_BEFORE,reply:REPLY_BEFORE}})),1,['ferry-after']);
+    var notObject=withAfter(WARM_NAV,'battle-fq');notObject.id='ferry-after';
+    expectRefused('12. an after that is not an object',run({catalog:CATALOG,rounds:[notObject]}),1,['ferry-after']);
+    var isNull=withAfter(WARM_NAV,null);isNull.id='ferry-after';
+    expectRefused('12. an after that is null',run({catalog:CATALOG,rounds:[isNull]}),1,['ferry-after']);
+    expectRefused('12. a warm round too long for the budget once the page reserves room for its note',
+      run({catalog:CATALOG,rounds:[withAfter({id:'ferry-after',path:'battle-nav',slot:'a',question:Q5+' '+new Array(2001).join('ferry ')},WARM_NAV.after)]}),1,['ferry-after','Too long to send']);
+    // Scratch pages on which the earlier round goes wrong.
+    var battle=lift.from(html).fn('fireGroqBattle');
+    var twice=variant('earlier-twice',function(t){return t.replace(battle,battle.replace('var resp=await fetch(','if(fieldId===\'fq\')await fetch(\''+CHAT_URL+'\',{method:\'POST\',body:groqRequestBody(model,mc,messages,1200,temp)});var resp=await fetch('));});
+    expectRefused('12. a page whose FQ round sends two requests, as the earlier round',run({catalog:CATALOG,rounds:[WARM_NAV]},twice),1,['ferry-warm-nav',/earlier round/,/2 requests/]);
+    var silent=variant('earlier-silent',function(t){return t.replace(battle,battle.replace('{','{if(fieldId===\'fq\')return;'));});
+    expectRefused('12. a page whose FQ round sends nothing, as the earlier round',run({catalog:CATALOG,rounds:[WARM_NAV]},silent),1,['ferry-warm-nav',/earlier round/,/no request/]);
+    var later=variant('later-silent',function(t){return t.replace(battle,battle.replace('{','{if(fieldId===\'nav\')return;'));});
+    var laterRun=run({catalog:CATALOG,rounds:[WARM_NAV]},later);
+    expectRefused('12. a page whose N round sends nothing after an FQ round that did send',laterRun,1,['ferry-warm-nav',/no request/]);
+    expect('12. and the run does not take the earlier reply, left in the answer field, for what the page said',[/earlier round/.test(laterRun.stderr),laterRun.stderr.indexOf('Fixture earlier reply')],[false,-1]);
+    // A page that records the earlier round and not the round itself: the earlier round's record is not taken for it.
+    var append=lift.from(html).fn('appendGroqMemory');
+    var firstOnly=variant('first-note-only',function(t){return t.replace(append,append.replace('if(!groqMemoryEnabled) return;','if(!groqMemoryEnabled) return;\n  if(groqMemory[slot] && groqMemory[slot].length) return;'));});
+    expectRefused('12. a page that keeps a record of the earlier round only, on a warm round of the same path',run({catalog:CATALOG,rounds:[WARM_HP]},firstOnly),1,['ferry-warm-hp',/no record/]);
+    var throwsFq=variant('earlier-throws',function(t){return t.replace(battle,battle.replace('{','{if(fieldId===\'fq\')throw new Error("an invented stop");'));});
+    expectRefused('12. a page whose FQ fire throws, as the earlier round',run({catalog:CATALOG,rounds:[WARM_NAV]},throwsFq),1,['ferry-warm-nav',/earlier round/,'an invented stop']);
   });
 
   finished=true;
