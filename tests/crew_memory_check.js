@@ -44,8 +44,8 @@
 //      A sentence added to the panel without a check fails.
 //   8. The version. APP_VERSION is v41.12.
 //
-// What it does not pin: what a real model does with the block (the gauntlet
-// ship gate, run by the owner in a browser), how the folds look (measured in
+// What it does not pin: what a real model does with the block (the gauntlet,
+// a ship gate run outside this page's tests), how the folds look (measured in
 // a browser), and Groq's API (the reply is invented).
 //
 // Run from the repo root:   node tests/crew_memory_check.js
@@ -53,6 +53,7 @@
 // Exit 0 on pass; exit 1 on any failure.
 
 var fs=require('fs'), path=require('path');
+var lift=require('./page_lift');
 var htmlPath=process.argv[2]||path.join(__dirname,'..','index.html');
 var html=fs.readFileSync(htmlPath,'utf8');
 
@@ -74,56 +75,20 @@ async function group(label,fn){
   try{await fn();}catch(e){fail(label,'stopped: '+String(e&&e.message||e));}
 }
 
-function braceEnd(src,open){
-  var depth=0;
-  for(var i=open;i<src.length;i++){
-    var ch=src[i];
-    if(ch==='{')depth++;
-    else if(ch==='}'){depth--;if(depth===0)return i;}
-  }
-  throw new Error('extract: unbalanced braces');
-}
-// The source of a function, or '' when the page has none by that name.
-function extractFn(name){
-  var at=html.indexOf('function '+name+'(');
-  if(at<0)return '';
-  var start=(html.slice(at-6,at)==='async ')?at-6:at;
-  return html.slice(start,braceEnd(html,html.indexOf('{',at))+1);
-}
-function extractVar(name){
-  var at=html.indexOf('\nvar '+name+' = ');
-  if(at<0)at=html.indexOf('\nvar '+name+'=');
-  if(at<0)return '';
-  at+=1;
-  var eq=html.indexOf('=',at), i=eq+1;
-  while(html[i]===' ')i++;
-  if(html[i]==='{')return html.slice(at,braceEnd(html,i)+1)+';';
-  return html.slice(at,html.indexOf('\n',at));
-}
-function extractConst(name){
-  var m=new RegExp('\\nconst '+name+'\\s*=[^\\n]*').exec(html);
-  return m?m[0].slice(1):'';
-}
+// The brace walk and the fixture page's elements and storage are shared with
+// the request builder: tests/page_lift.js holds them.
+var braceEnd=lift.braceEnd, from=lift.from(html);
+var extractFn=from.fn, extractVar=from.variable, extractConst=from.constant;
 
 // ── The fixture page. An element is made the first time it is asked for. ──
-var els={}, store={}, alerts=[], sends=[], REPLY='', gate=null;
-function el(id){
-  if(!els[id]){
-    var set={};
-    els[id]={value:'',textContent:'',innerHTML:'',disabled:false,checked:false,open:true,style:{},className:'',
-      classList:{add:function(c){set[c]=true;},remove:function(c){delete set[c];},
-                 toggle:function(c,on){if(on===undefined)on=!set[c];if(on)set[c]=true;else delete set[c];return !!on;},
-                 contains:function(c){return !!set[c];}}};
-  }
-  return els[id];
-}
+var store={}, alerts=[], sends=[], REPLY='', gate=null;
+var el=lift.elements();
 function FakeReader(){}
 FakeReader.prototype.readAsText=function(file){this.onload({target:{result:file.text}});};
 var page={
   g:el,
   v:function(id){return el(id).value.trim();},
-  localStorage:{getItem:function(k){return Object.prototype.hasOwnProperty.call(store,k)?store[k]:null;},
-                setItem:function(k,x){store[k]=String(x);},removeItem:function(k){delete store[k];}},
+  localStorage:lift.storage(store),
   alert:function(m){alerts.push(String(m));},
   confirm:function(){return true;},
   onFC:function(){},
@@ -166,13 +131,12 @@ var FNS=['groqVendorOf','groqDerivedLabel','makeModelConfig','getModelConfig','r
   'saveGroqMemoryToggle','sanitizeGroqNotes','sanitizeGroqDrafts','loadGroqMemoryFromState','restoreGroqMemoryAtBoot',
   'ldSlots','svSlots','getActiveSlot','setActiveSlot','captureCurrentState','saveCurrentToSlot','loadSlot',
   'deleteSlot','newSession','clearSession','importState','fireGroq','fireGroqCustom','fireGroqBattle'];
-var names=Object.keys(page);
 var source=CONSTS.map(extractConst).concat(VARS.map(extractVar)).concat(FNS.map(extractFn)).filter(Boolean).join('\n');
-var app=new Function(names.join(','),
+var app=lift.run(page,
   'var MODEL_CONFIG={}; var synthFdEnabled=false; var lastSavedSnapshot="";\n'+source+
   '\nif(typeof makeModelConfig==="function")MODEL_CONFIG["fixture-one/alpha-1b"]=makeModelConfig("fixture-one/alpha-1b","fixture");'+
   '\nvar out={};'+
-  FNS.map(function(n){return '\nout.'+n+'=(typeof '+n+'==="function")?'+n+':function(){throw new Error("the page has no function '+n+'");};';}).join('')+
+  lift.exportsOf(FNS)+
   '\nout.memory=function(){return typeof groqMemory==="undefined"?undefined:groqMemory;};'+
   '\nout.setMemory=function(slot,list){groqMemory[slot]=list;};'+
   '\nout.drafts=function(){return typeof groqDrafts==="undefined"?undefined:groqDrafts;};'+
@@ -180,7 +144,7 @@ var app=new Function(names.join(','),
   '\nout.setSynthFd=function(on){synthFdEnabled=!!on;};'+
   '\nout.cap=typeof GROQ_MEM_MAX_TURNS==="undefined"?undefined:GROQ_MEM_MAX_TURNS;'+
   '\nreturn out;'
-).apply(null,names.map(function(n){return page[n];}));
+);
 
 store.cw_groq_key='fixture-key-not-real';
 ['a','b'].forEach(function(slot){
